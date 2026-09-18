@@ -38,7 +38,7 @@ The Software depends on services that the Licensor does not control, including K
 
 - those services are governed by their own terms and privacy policies, and your use of them through the Software is your responsibility;
 - the Licensor does not guarantee that those services, their APIs, feeds or page formats will remain available, unchanged or compatible with the Software; parts of the Software rely on interfaces that those providers have not documented for third-party use and may change or restrict at any time;
-- the Licensor is not affiliated with, endorsed by or sponsored by Kick, KickBot, Donofa, Bonbast or Pusher.
+- the Licensor is not affiliated with, endorsed by or sponsored by Kick, KickBot, Bonbast or Pusher.
 
 ## 6. Privacy
 

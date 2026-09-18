@@ -9,7 +9,7 @@ Sahne Plus is a free Windows desktop application that shows your own animated al
 
 Each alert plays a transparent WebM (or GIF / image / sound) that lives on your computer, with a customizable card showing the sender, the amount and the message.
 
-> Sahne Plus is an independent third-party application and is not affiliated with, endorsed by, or sponsored by Kick, KickBot, Donofa or Bonbast.
+> Sahne Plus is an independent third-party application and is not affiliated with, endorsed by, or sponsored by Kick, KickBot or Bonbast.
 
 ## Download
 
@@ -59,4 +59,4 @@ Sahne Plus has **no cloud backend**. Your media, settings and logs stay in `Docu
 
 ## License
 
-Sahne Plus is proprietary software, free to use under the [Terms of Use](TERMS.md). The source code is not public. © 2026 AmirEyZed. Kick, KickBot, Donofa and Bonbast are trademarks of their respective owners.
+Sahne Plus is proprietary software, free to use under the [Terms of Use](TERMS.md). The source code is not public. © 2026 AmirEyZed. Kick, KickBot and Bonbast are trademarks of their respective owners.

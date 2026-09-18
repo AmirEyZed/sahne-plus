@@ -76,4 +76,4 @@ We will update this document when the application's behaviour changes. The versi
 
 ## 11. Third-party disclaimer
 
-Sahne Plus is an independent third-party application and is not affiliated with, endorsed by, or sponsored by Kick, KickBot, Donofa, Bonbast or Pusher. All product names are trademarks of their respective owners.
+Sahne Plus is an independent third-party application and is not affiliated with, endorsed by, or sponsored by Kick, KickBot, Bonbast or Pusher. All product names are trademarks of their respective owners.

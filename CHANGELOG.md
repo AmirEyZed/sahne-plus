@@ -2,6 +2,10 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
+## 1.1.1 — 2026-09-18
+
+- Removed an unnecessary mention of an unrelated third-party product from the About page and documents. No functional change.
+
 ## 1.1.0 — 2026-09-18 (release-readiness hardening)
 
 Security
