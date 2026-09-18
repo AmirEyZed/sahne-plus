@@ -9,7 +9,7 @@ Sahne Plus is a free Windows desktop application that shows your own animated al
 
 Each alert plays a transparent WebM (or GIF / image / sound) that lives on your computer, with a customizable card showing the sender, the amount and the message.
 
-> Sahne Plus is an independent third-party application and is not affiliated with, endorsed by, or sponsored by Kick, KickBot or Bonbast.
+> Sahne Plus is an independent third-party application and is not affiliated with, endorsed by, or sponsored by Kick, KickBot, baha24 or Bonbast.
 
 ## Download
 
@@ -26,7 +26,7 @@ Windows SmartScreen note: the installer is currently not code-signed, so Windows
 
 ### Alert selection
 
-- Donation amounts in USD are converted to toman with the current rate from **bonbast.com** (refreshed automatically; you can also set a fixed manual rate).
+- Donation amounts in USD are converted to toman with the live rate from **baha24.com** (public JSON API, refreshed every few minutes; **bonbast.com** is used only as a fallback; you can also set a fixed manual rate).
 - The alert with the **highest tier** the donation reaches is played (e.g. a 700,000 toman donation plays the 500,000 tier, not the 1,000,000 one).
 - Several files on the same tier → one is picked at random.
 - A file with **keywords** is played only when the donation message contains one of them (e.g. `!dance`).
@@ -47,7 +47,7 @@ Alerts play one at a time with a configurable gap. If the Browser Source is clos
 
 ## Privacy
 
-Sahne Plus has **no cloud backend**. Your media, settings and logs stay in `Documents\Sahne Plus`. The application connects only to the third-party services it needs: KickBot (donations), Kick's public chat feed (subscriptions) and bonbast.com (exchange rate). There are no analytics, telemetry, crash reports, ads or automatic updates. Your KickBot widget key is stored encrypted with Windows DPAPI and is never shown or logged. Full details: `PRIVACY.md` and, for the technically curious, the Data-flow audit shipped with the source.
+Sahne Plus has **no cloud backend**. Your media, settings and logs stay in `Documents\Sahne Plus`. The application connects only to the third-party services it needs: KickBot (donations), Kick's public chat feed (subscriptions) and baha24.com / bonbast.com (exchange rate). There are no analytics, telemetry, crash reports, ads or automatic updates. Your KickBot widget key is stored encrypted with Windows DPAPI and is never shown or logged. Full details: `PRIVACY.md` and, for the technically curious, the Data-flow audit shipped with the source.
 
 ## Documents
 
@@ -59,4 +59,4 @@ Sahne Plus has **no cloud backend**. Your media, settings and logs stay in `Docu
 
 ## License
 
-Sahne Plus is proprietary software, free to use under the [Terms of Use](TERMS.md). The source code is not public. © 2026 AmirEyZed. Kick, KickBot and Bonbast are trademarks of their respective owners.
+Sahne Plus is proprietary software, free to use under the [Terms of Use](TERMS.md). The source code is not public. © 2026 AmirEyZed. Kick, KickBot, baha24 and Bonbast are trademarks of their respective owners.

@@ -4,8 +4,8 @@
 
 | Version | Supported |
 |---|---|
-| 1.1.x (current) | yes — security fixes |
-| 1.0.x | no — please upgrade |
+| 1.2.x (current) | yes — security fixes |
+| 1.1.x and older | no — please upgrade |
 
 ## Reporting a vulnerability
 
@@ -30,5 +30,5 @@ What you can expect:
 ## Scope notes
 
 - The local server on `127.0.0.1:7788` is intended to be reachable only from the same computer. Reports that it can be reached from another machine, from another origin in the browser (CSRF / DNS rebinding), or that the Browser Source can be made to execute injected content from a donation message, are in scope.
-- Third-party services (KickBot, Kick, Bonbast, Pusher) are out of scope; report issues in those services to their owners.
+- Third-party services (KickBot, Kick, baha24, Bonbast, Pusher) are out of scope; report issues in those services to their owners.
 - Sahne Plus does not offer a bug bounty at this time.

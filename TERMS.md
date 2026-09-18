@@ -2,7 +2,7 @@
 
 _Last updated: 2026-09-18 · Version 1.0 of these terms_
 
-**خلاصه‌ی فارسی (غیررسمی):** Sahne Plus رایگان است ولی متن‌باز نیست. اجازه دارید آن را برای استریم شخصی یا تجاری خودتان نصب و استفاده کنید. اجازه ندارید آن را بفروشید، بازنشر کنید یا نسخه‌ی تغییریافته‌اش را منتشر کنید. مسئولیت فایل‌هایی که وارد برنامه می‌کنید و روی استریم پخش می‌شوند (حق نشر ویدیو، گیف، موسیقی) با شماست. سرویس‌های شخص ثالث (کیک، کیک‌بات، بن‌بست) متعلق به ما نیستند و ممکن است تغییر کنند یا از کار بیفتند. برنامه «همان‌طور که هست» ارائه می‌شود و بدون ضمانت. متن رسمی، نسخه‌ی انگلیسی زیر است.
+**خلاصه‌ی فارسی (غیررسمی):** Sahne Plus رایگان است ولی متن‌باز نیست. اجازه دارید آن را برای استریم شخصی یا تجاری خودتان نصب و استفاده کنید. اجازه ندارید آن را بفروشید، بازنشر کنید یا نسخه‌ی تغییریافته‌اش را منتشر کنید. مسئولیت فایل‌هایی که وارد برنامه می‌کنید و روی استریم پخش می‌شوند (حق نشر ویدیو، گیف، موسیقی) با شماست. سرویس‌های شخص ثالث (کیک، کیک‌بات، baha24، بن‌بست) متعلق به ما نیستند و ممکن است تغییر کنند یا از کار بیفتند. برنامه «همان‌طور که هست» ارائه می‌شود و بدون ضمانت. متن رسمی، نسخه‌ی انگلیسی زیر است.
 
 These Terms of Use ("Terms") are a legal agreement between you ("you") and **AmirEyZed** ("Licensor", "we") for the Sahne Plus desktop application, including its installer, updates and documentation ("Software"). By installing or using the Software you accept these Terms. If you do not agree, do not install or use the Software.
 
@@ -34,11 +34,11 @@ You may not, and may not allow others to:
 
 ## 5. Third-party services
 
-The Software depends on services that the Licensor does not control, including KickBot (donation events, payment capture, text-to-speech), Kick (subscription events through its public chat feed), Pusher (the infrastructure Kick's chat feed uses) and bonbast.com (exchange rate). You acknowledge that:
+The Software depends on services that the Licensor does not control, including KickBot (donation events, payment capture, text-to-speech), Kick (subscription events through its public chat feed), Pusher (the infrastructure Kick's chat feed uses) and baha24.com / bonbast.com (exchange rate). You acknowledge that:
 
 - those services are governed by their own terms and privacy policies, and your use of them through the Software is your responsibility;
 - the Licensor does not guarantee that those services, their APIs, feeds or page formats will remain available, unchanged or compatible with the Software; parts of the Software rely on interfaces that those providers have not documented for third-party use and may change or restrict at any time;
-- the Licensor is not affiliated with, endorsed by or sponsored by Kick, KickBot, Bonbast or Pusher.
+- the Licensor is not affiliated with, endorsed by or sponsored by Kick, KickBot, baha24, Bonbast or Pusher.
 
 ## 6. Privacy
 

@@ -1,4 +1,4 @@
-# Third-Party Notices — Sahne Plus 1.1.1
+# Third-Party Notices — Sahne Plus 1.2.0
 
 Sahne Plus itself is proprietary (see `LICENSE.txt`). It is built with and redistributes the following third-party components. None of them is under GPL, AGPL or another copyleft license; all permit redistribution inside a proprietary application provided the notices below are kept.
 
@@ -32,4 +32,4 @@ electron-builder 26.x (MIT) and its helpers (`app-builder-bin`, `7zip` binaries,
 
 ## Third-party services used at runtime (not software components)
 
-Sahne Plus connects to KickBot, Kick (through Pusher-hosted chat infrastructure) and bonbast.com. These are online services, not bundled code; their terms apply to the streamer's use of them. Sahne Plus is not affiliated with, endorsed by or sponsored by Kick, KickBot, Bonbast or Pusher.
+Sahne Plus connects to KickBot, Kick (through Pusher-hosted chat infrastructure), baha24.com and bonbast.com. These are online services, not bundled code; their terms apply to the streamer's use of them. Sahne Plus is not affiliated with, endorsed by or sponsored by Kick, KickBot, Bonbast or Pusher.

@@ -2,7 +2,7 @@
 
 _Last updated: 2026-09-18 · Applies to Sahne Plus 1.1.0 and later_
 
-**خلاصه‌ی فارسی:** Sahne Plus هیچ سرور ابری ندارد. فایل‌های الرت، تنظیمات و لاگ‌ها فقط روی کامپیوتر شما (پوشه‌ی `Documents\Sahne Plus`) ذخیره می‌شوند. برنامه فقط به سه سرویس شخص ثالث وصل می‌شود که برای کارکردش لازم‌اند: کیک‌بات (دونیت‌ها)، فید چت عمومی کیک (ساب‌ها) و bonbast.com (نرخ دلار). آنالیتیکس، ردیابی، تبلیغات، گزارش خطای خودکار و به‌روزرسانی خودکار وجود ندارد. ما هیچ داده‌ای از شما دریافت یا فروش نمی‌کنیم، چون اصلاً به ما نمی‌رسد.
+**خلاصه‌ی فارسی:** Sahne Plus هیچ سرور ابری ندارد. فایل‌های الرت، تنظیمات و لاگ‌ها فقط روی کامپیوتر شما (پوشه‌ی `Documents\Sahne Plus`) ذخیره می‌شوند. برنامه فقط به سه سرویس شخص ثالث وصل می‌شود که برای کارکردش لازم‌اند: کیک‌بات (دونیت‌ها)، فید چت عمومی کیک (ساب‌ها) و baha24.com یا bonbast.com (نرخ دلار). آنالیتیکس، ردیابی، تبلیغات، گزارش خطای خودکار و به‌روزرسانی خودکار وجود ندارد. ما هیچ داده‌ای از شما دریافت یا فروش نمی‌کنیم، چون اصلاً به ما نمی‌رسد.
 
 ## 1. Who we are
 
@@ -34,12 +34,13 @@ Electron (the runtime) keeps its own browser profile in `%APPDATA%\SahnePlus` (c
 |---|---|---|---|
 | **KickBot** (`kickbot.live`, `widgets.kickbot.com`) | receive your donation events in real time; confirm ("capture") each donation when its alert starts, exactly as the official KickBot widget does; play KickBot's text-to-speech audio | your widget key and streamer id, the id of the donation being shown, a keep-alive ping | donation events (donor name, amount, message, optional GIF/TTS URLs) |
 | **Kick** (`kick.com` once, then Kick's public chat feed hosted on `pusher.com`) | show subscriptions and gifted subscriptions | your channel name; a subscription to the public chat channels of your Kick channel (no login, no password) | subscription and gift events (usernames, counts) |
-| **bonbast.com** | convert dollar donation amounts to toman | a page request with a normal desktop browser identity | the current USD sell rate |
+| **baha24.com** (`/api/v1/price`, public JSON API) | convert dollar donation amounts to toman | a plain GET request, no account, no key | the current USD sell rate |
+| **bonbast.com** (fallback only, when baha24 fails) | same | a page request with a normal desktop browser identity | the current USD sell rate |
 | **Meld Studio** on your own computer (`127.0.0.1:13376`) | reload the Browser Source layer if it lost the connection | the layer URL | layer list |
 
-If you configure a proxy in Settings, the kick.com and bonbast.com requests go through it. The KickBot connection does not use the proxy.
+If you configure a proxy in Settings, the kick.com and bonbast.com requests go through it, and baha24.com is retried through it if the direct request fails. The KickBot connection does not use the proxy.
 
-These third parties process the data they receive under **their own** privacy policies. Sahne Plus cannot control what KickBot, Kick, Pusher or Bonbast do with a request once it reaches them.
+These third parties process the data they receive under **their own** privacy policies. Sahne Plus cannot control what KickBot, Kick, Pusher, baha24 or Bonbast do with a request once it reaches them.
 
 The Browser Source page (the page you add to OBS / Meld Studio) additionally loads KickBot TTS audio and, when a donation carries one, the GIF URL supplied by KickBot. All fonts are bundled; the Browser Source loads nothing from Google or any CDN.
 
@@ -76,4 +77,4 @@ We will update this document when the application's behaviour changes. The versi
 
 ## 11. Third-party disclaimer
 
-Sahne Plus is an independent third-party application and is not affiliated with, endorsed by, or sponsored by Kick, KickBot, Bonbast or Pusher. All product names are trademarks of their respective owners.
+Sahne Plus is an independent third-party application and is not affiliated with, endorsed by, or sponsored by Kick, KickBot, baha24, Bonbast or Pusher. All product names are trademarks of their respective owners.

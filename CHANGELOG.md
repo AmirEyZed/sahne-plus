@@ -2,6 +2,11 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
+## 1.2.0 — 2026-09-18
+
+- Exchange rate now comes from the baha24.com public JSON API (live sell rate, refreshed every 2 minutes by default, minimum 1). bonbast.com is only used as a fallback, at most every 5 minutes. The rate source is shown next to the rate in the app.
+- Fixed: the first-run setup card stayed visible after the KickBot link was configured.
+
 ## 1.1.1 — 2026-09-18
 
 - Removed an unnecessary mention of an unrelated third-party product from the About page and documents. No functional change.
