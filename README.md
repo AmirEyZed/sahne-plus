@@ -58,6 +58,7 @@ Compare the printed hash with the value in `SHA256SUMS.txt` of the same release 
 - Download Sahne+ only from the official Releases of this repository (`github.com/AmirEyZed/sahne-plus`). Copies hosted elsewhere, re-uploads and "modified" builds are not official and cannot be verified by us.
 - What the application does on your computer and on the network is documented in [PRIVACY.md](PRIVACY.md): no cloud backend, no analytics, no telemetry, no automatic updates; connections only to KickBot, Kick's public chat feed and the exchange-rate services.
 - Security reports are handled privately as described in [SECURITY.md](SECURITY.md).
+- **Independent third-party review:** [B3hnamR/SahnePlusReview](https://github.com/B3hnamR/SahnePlusReview) reviewed the 1.2.0 release (application source read from the shipped package, fuses, ASAR integrity, network endpoints). It is an independent review by a third party, not an official audit or certification, and it does not cover the bundled Chromium/Electron runtime; read its scope notes before drawing conclusions.
 - Code signing, signed checksums and build attestations are planned improvements; the current status of each is listed in [SECURITY.md](SECURITY.md#supply-chain-status).
 
 ## How it works
