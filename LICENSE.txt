@@ -1,0 +1,35 @@
+Sahne Plus
+Copyright (c) 2026 AmirEyZed. All rights reserved.
+
+PROPRIETARY SOFTWARE — SOURCE CODE CURRENTLY PRIVATE
+
+This software, including its source code, object code, executables,
+installers, user interface, artwork, icons, documentation and all related
+materials ("Software"), is the proprietary and confidential property of the
+copyright holder and is protected by copyright law and international treaties.
+
+At this time no open-source license applies to the Software. In particular, the
+Software is currently NOT licensed under the MIT, Apache-2.0, GPL, BSD or any
+other open-source license, and nothing in this notice grants any right to copy,
+modify, merge, publish, distribute, sublicense or sell copies of the Software or
+its source code.
+
+The copyright holder intends to publish the source code in the future. Any such
+publication will be accompanied by its own license terms; until then this notice
+applies and all rights are reserved.
+
+Use of the compiled application is governed exclusively by the Sahne Plus
+Terms of Use (TERMS.md), which is a limited, revocable, non-exclusive,
+non-transferable license to install and use the compiled application for the
+purpose of displaying stream alerts. All rights not expressly granted there are
+reserved.
+
+Third-party components bundled with the Software (Electron, Chromium, Node.js,
+NSIS and the bundled fonts) remain under their own licenses; see
+THIRD_PARTY_NOTICES.md.
+
+"Sahne", "Sahne Plus" and the split-frame symbol are identifiers of the
+copyright holder and may not be used to name or brand any other software.
+
+Kick, KickBot, baha24 and Bonbast are names of unrelated third parties. Sahne
+Plus is not affiliated with, endorsed by or sponsored by any of them.

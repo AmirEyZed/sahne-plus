@@ -2,7 +2,7 @@
 
 _Last updated: 2026-09-18 · Version 1.0 of these terms_
 
-**خلاصه‌ی فارسی (غیررسمی):** Sahne Plus رایگان است ولی متن‌باز نیست. اجازه دارید آن را برای استریم شخصی یا تجاری خودتان نصب و استفاده کنید. اجازه ندارید آن را بفروشید، بازنشر کنید یا نسخه‌ی تغییریافته‌اش را منتشر کنید. مسئولیت فایل‌هایی که وارد برنامه می‌کنید و روی استریم پخش می‌شوند (حق نشر ویدیو، گیف، موسیقی) با شماست. سرویس‌های شخص ثالث (کیک، کیک‌بات، baha24، بن‌بست) متعلق به ما نیستند و ممکن است تغییر کنند یا از کار بیفتند. برنامه «همان‌طور که هست» ارائه می‌شود و بدون ضمانت. متن رسمی، نسخه‌ی انگلیسی زیر است.
+**خلاصه‌ی فارسی (غیررسمی):** Sahne Plus رایگان است ولی فعلاً متن‌باز نیست (انتشار سورس برای آینده برنامه‌ریزی شده). اجازه دارید آن را برای استریم شخصی یا تجاری خودتان نصب و استفاده کنید. اجازه ندارید آن را بفروشید، بازنشر کنید یا نسخه‌ی تغییریافته‌اش را منتشر کنید. مسئولیت فایل‌هایی که وارد برنامه می‌کنید و روی استریم پخش می‌شوند (حق نشر ویدیو، گیف، موسیقی) با شماست. سرویس‌های شخص ثالث (کیک، کیک‌بات، baha24، بن‌بست) متعلق به ما نیستند و ممکن است تغییر کنند یا از کار بیفتند. برنامه «همان‌طور که هست» ارائه می‌شود و بدون ضمانت. متن رسمی، نسخه‌ی انگلیسی زیر است.
 
 These Terms of Use ("Terms") are a legal agreement between you ("you") and **AmirEyZed** ("Licensor", "we") for the Sahne Plus desktop application, including its installer, updates and documentation ("Software"). By installing or using the Software you accept these Terms. If you do not agree, do not install or use the Software.
 
@@ -12,7 +12,7 @@ Subject to these Terms, the Licensor grants you a limited, personal, non-exclusi
 
 ## 2. Ownership
 
-The Software, its source code, design, user interface, artwork, the "Sahne" / "Sahne Plus" names and the split-frame symbol are the property of the Licensor and are protected by copyright and other intellectual-property laws. All rights not expressly granted to you are reserved. The Software is **not** open-source software and no open-source license applies to it. Bundled third-party components remain under their own licenses (see `THIRD_PARTY_NOTICES.md`).
+The Software, its source code, design, user interface, artwork, the "Sahne" / "Sahne Plus" names and the split-frame symbol are the property of the Licensor and are protected by copyright and other intellectual-property laws. All rights not expressly granted to you are reserved. The Software is **not currently** open-source software and, at this time, no open-source license applies to it; the Licensor plans to publish the source code in the future under terms to be announced. Bundled third-party components remain under their own licenses (see `THIRD_PARTY_NOTICES.md`).
 
 ## 3. Restrictions
 

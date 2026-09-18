@@ -1,0 +1,48 @@
+# Verifies (and, if missing, generates) SHA-256 checksums for the assets of a published release.
+# It does NOT build Sahne+ — releases are built by the maintainer locally. This only makes the
+# checksum file reproducible from the uploaded assets and fails loudly if SHA256SUMS.txt disagrees.
+name: release-checksums
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write   # needed only to upload SHA256SUMS.txt when it is missing
+
+jobs:
+  checksums:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p assets && cd assets
+          gh release download "${{ github.event.release.tag_name }}" --repo "${{ github.repository }}"
+          ls -la
+      - name: Compute checksums of installer / zip
+        working-directory: assets
+        run: |
+          set -euo pipefail
+          sha256sum *.exe *.zip 2>/dev/null | tee ../SHA256SUMS.computed.txt
+      - name: Compare with uploaded SHA256SUMS.txt (fail on mismatch)
+        working-directory: assets
+        run: |
+          set -euo pipefail
+          if [ -f SHA256SUMS.txt ]; then
+            while read -r sum file; do
+              f="${file#\*}"
+              if [ -f "$f" ]; then
+                echo "$sum *$f" | sha256sum -c -
+              fi
+            done < SHA256SUMS.txt
+            echo "uploaded SHA256SUMS.txt matches the assets"
+          else
+            echo "SHA256SUMS.txt missing — uploading the computed one"
+            cp ../SHA256SUMS.computed.txt SHA256SUMS.txt
+            gh release upload "${{ github.event.release.tag_name }}" SHA256SUMS.txt --repo "${{ github.repository }}"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
