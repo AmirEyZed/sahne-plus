@@ -1,0 +1,29 @@
+Sahne Plus (Sahne+)
+Copyright (c) 2026 AmirEyZed
+
+This product includes software developed by AmirEyZed
+(https://github.com/AmirEyZed/sahne-plus).
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this software except in compliance with the License. You may obtain a
+copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations
+under the License.
+
+The names "Sahne", "Sahne Plus" and "Sahne+", the split-frame symbol and the
+application icons are identifiers of the copyright holder and are NOT
+licensed under the Apache License. See BRANDING.md.
+
+Bundled fonts (Vazirmatn, Estedad, Inter, Poppins, Lalezar) are licensed
+under the SIL Open Font License 1.1; their license texts ship next to the
+font files. See THIRD_PARTY_NOTICES.md.
+
+Kick, KickBot, baha24 and Bonbast are names of unrelated third parties.
+Sahne Plus is an independent application and is not affiliated with,
+endorsed by or sponsored by any of them.

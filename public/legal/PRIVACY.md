@@ -61,7 +61,7 @@ Donation and subscription events contain the names and messages of your viewers.
 - **In the app:** Settings → "Clear application data" deletes `config.json`, `played.json` and everything in `media\` (after a confirmation), then restarts the app. Settings → "Disconnect KickBot" removes only the widget key. "Reset settings" restores defaults without touching media.
 - **Manually:** delete the folder `Documents\Sahne Plus`.
 - **Uninstalling** the application removes the program files and Electron's profile folder (`%APPDATA%\SahnePlus`) but **does not** delete `Documents\Sahne Plus`, so your media survives a reinstall.
-- **Autostart:** the uninstaller also removes the "run at Windows login" registry entry (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run\SahnePlus`), so nothing of the program is left in the registry.
+- **Autostart:** uninstalling removes the program, but the "run at Windows login" registry entry (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run\SahnePlus`) may remain and simply points to a missing file; turn the option off in Settings before uninstalling to keep the registry clean.
 
 ## 8. Security of the local server
 

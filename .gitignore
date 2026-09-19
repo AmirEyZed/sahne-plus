@@ -1,0 +1,12 @@
+node_modules/
+dist/
+release/
+*.log
+*.tmp
+config.json
+config.json.*
+played.json
+.env
+.env.*
+scripts/xss-payload.json
+public-repo/

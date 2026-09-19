@@ -1,65 +1,54 @@
 # Sahne+ (Sahne Plus)
 
-**Local, transparent WebM alerts for Kick streamers on Windows.**
+**Local, transparent WebM alerts for Kick streamers on Windows.** Open source under Apache-2.0.
 
 Sahne+ shows your own animated alerts on stream for **KickBot donations**, **Kick subscriptions** and **Kick gifted subscriptions**. Each alert plays a transparent WebM (or GIF / image / sound) that lives on your computer, with a customizable card showing the sender, the amount and the message.
 
 > Sahne+ is an independent third-party application and is not affiliated with, endorsed by, or sponsored by Kick, KickBot, baha24 or Bonbast.
 
-## Source code status
+![Files page](docs/screenshots/files.png)
 
-**Sahne+ is not open-source yet. The source code is currently private and is planned to be made public in the future.**
+## Status
 
-This repository is used for:
-
-- **Official releases** (installers) on the [Releases](https://github.com/AmirEyZed/sahne-plus/releases) page
-- **Public documentation** (this README and the documents linked below)
-- **Changelog** — [CHANGELOG.md](CHANGELOG.md)
-- **Security information** — [SECURITY.md](SECURITY.md)
-- **Third-party licenses and notices** — [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
-
-Hosting files on GitHub does **not** mean that GitHub has reviewed, audited or security-approved the application. GitHub is only the place where the files are published.
+- **Source code:** public in this repository, licensed under the [Apache License 2.0](LICENSE). The names and icons are not part of the license — see [BRANDING.md](BRANDING.md).
+- **Official builds:** published on the [Releases](https://github.com/AmirEyZed/sahne-plus/releases) page. Starting with 1.3.0 they are built by the GitHub Actions workflow in this repository from the tagged source and published with a build provenance attestation. Earlier releases were built locally by the maintainer.
+- Hosting on GitHub does not mean GitHub has reviewed, audited or approved the application.
 
 ## Download
-
-Get Sahne+ **only** from the official Releases page of this repository:
 
 **https://github.com/AmirEyZed/sahne-plus/releases/latest**
 
 Each release provides the installer (`Sahne-Plus-Setup-<version>.exe`), `SHA256SUMS.txt`, the Persian quick guide (`README-FA.txt`) and release notes.
 
-Windows SmartScreen note: the installer is currently not code-signed, so Windows may show "Windows protected your PC". Verify the checksum (below), then click **More info → Run anyway**.
+Windows SmartScreen note: the installer is not code-signed yet, so Windows may show "Windows protected your PC". Verify the download (below), then click **More info → Run anyway**.
 
 ## Security & verification
 
-Every release ships a `SHA256SUMS.txt` file containing the SHA-256 checksum of the installer.
-
-What the checksum **does**:
-
-- It lets you verify **file integrity**: that the file you downloaded is byte-for-byte the file that was uploaded to the release, and was not corrupted or swapped in transit.
-
-What the checksum **does not** do:
-
-- It does **not** prove that the application is safe or free of vulnerabilities.
-- It does **not** prove that the binary was built from any particular public source code. The source is currently private and the installer is built by the maintainer on a local machine, not by a public CI system.
-- It is **not** a security audit, a code review or an endorsement by anyone.
-
-To verify the installer on Windows, open PowerShell in your Downloads folder and run:
+**Checksum (file integrity).** Every release ships `SHA256SUMS.txt`. On Windows:
 
 ```powershell
-Get-FileHash .\Sahne-Plus-Setup-1.2.0.exe -Algorithm SHA256
+Get-FileHash .\Sahne-Plus-Setup-1.3.0.exe -Algorithm SHA256
 ```
 
-Compare the printed hash with the value in `SHA256SUMS.txt` of the same release (letter case does not matter). If they differ, delete the file and download it again from the official Releases page.
+Compare the printed hash with `SHA256SUMS.txt` of the same release. A matching checksum proves the file is byte-for-byte what was uploaded; it does not prove the software is free of vulnerabilities.
+
+**Provenance (where the file came from).** From 1.3.0 on, each installer carries a GitHub build provenance attestation. With the [GitHub CLI](https://cli.github.com/):
+
+```powershell
+gh attestation verify .\Sahne-Plus-Setup-1.3.0.exe --repo AmirEyZed/sahne-plus
+```
+
+A successful verification proves the file was produced by this repository's `build-release` workflow from the commit tagged for that version — i.e. from the public source you can read here.
+
+Current supply-chain status (code signing, signed checksums, CI) is kept honest in [SECURITY.md](SECURITY.md#supply-chain-status).
 
 ## Trust & transparency
 
-- Do not assume any executable is safe merely because it is hosted on GitHub. This applies to Sahne+ as well.
-- Download Sahne+ only from the official Releases of this repository (`github.com/AmirEyZed/sahne-plus`). Copies hosted elsewhere, re-uploads and "modified" builds are not official and cannot be verified by us.
-- What the application does on your computer and on the network is documented in [PRIVACY.md](PRIVACY.md): no cloud backend, no analytics, no telemetry, no automatic updates; connections only to KickBot, Kick's public chat feed and the exchange-rate services.
+- Do not assume any executable is safe merely because it is hosted on GitHub; verify checksum and provenance, and download only from this repository's Releases.
+- Everything the application stores and every network connection it makes is documented in [PRIVACY.md](PRIVACY.md) and, in more detail, in [docs/DATA_FLOW.md](docs/DATA_FLOW.md): no cloud backend, no analytics, no telemetry, no automatic updates; connections only to KickBot, Kick's public chat feed and the exchange-rate services.
+- Independent third-party review of 1.2.0: [B3hnamR/SahnePlusReview](https://github.com/B3hnamR/SahnePlusReview) (an independent review, not an official audit; read its scope notes).
+- A second independent code audit of the 1.3.0 source by the same reviewer found two real bugs (image alerts not rendering, a capture failure dropping a donation); both were fixed before release, see [CHANGELOG.md](CHANGELOG.md). Sahne+ has not had a professional security audit.
 - Security reports are handled privately as described in [SECURITY.md](SECURITY.md).
-- **Independent third-party review:** [B3hnamR/SahnePlusReview](https://github.com/B3hnamR/SahnePlusReview) reviewed the 1.2.0 release (application source read from the shipped package, fuses, ASAR integrity, network endpoints). It is an independent review by a third party, not an official audit or certification, and it does not cover the bundled Chromium/Electron runtime; read its scope notes before drawing conclusions.
-- Code signing, signed checksums and build attestations are planned improvements; the current status of each is listed in [SECURITY.md](SECURITY.md#supply-chain-status).
 
 ## How it works
 
@@ -68,10 +57,12 @@ Compare the printed hash with the value in `SHA256SUMS.txt` of the same release 
 3. Add the **Browser Source** URL (`http://localhost:7788/overlay`, 1920×1080) to **OBS Studio** or **Meld Studio**.
 4. Drop your media files into the **Files** page and give each one a **minimum amount** in toman. Files must already be transparent (WebM with alpha) if you want them to play without a background; Sahne+ plays files as they are.
 
+![Appearance editor with live preview](docs/screenshots/look.png)
+
 ### Alert selection
 
 - Donation amounts in USD are converted to toman with the live rate from **baha24.com** (public JSON API, refreshed every few minutes; **bonbast.com** is used only as a fallback; you can also set a fixed manual rate).
-- The alert with the **highest tier** the donation reaches is played (e.g. a 700,000 toman donation plays the 500,000 tier, not the 1,000,000 one).
+- The alert with the **highest tier** the donation reaches is played (a 700,000 toman donation plays the 500,000 tier, not the 1,000,000 one).
 - Several files on the same tier → one is picked at random.
 - A file with **keywords** is played only when the donation message contains one of them (e.g. `!dance`).
 - Subscriptions count as 4.99 USD × rate (or a fixed toman value you choose); gifted subscriptions multiply by the number of gifts. Keywords `sub` / `giftsub` let you dedicate files to subscriptions.
@@ -81,31 +72,48 @@ Compare the printed hash with the value in `SHA256SUMS.txt` of the same release 
 
 Alerts play one at a time with a configurable gap. If the Browser Source is closed, alerts wait in the queue. Each donation plays once, also across restarts.
 
+![Alert on a transparent Browser Source](docs/screenshots/overlay-alert.png)
+
 ## Features
 
 - Transparent WebM / MP4 / GIF / image / audio alerts, fullscreen or boxed above the card
 - Live preview with drag-and-drop card positioning; fonts, colours, animations, amount formats, Persian digits
 - Test donation / subscription / gift buttons (never touch KickBot)
 - Runs in the system tray; optional start with Windows
-- All fonts bundled; nothing is loaded from CDNs
+- All fonts bundled; nothing is loaded from CDNs; zero runtime npm dependencies
 
 ## Privacy
 
 Sahne+ has **no cloud backend**. Your media, settings and logs stay in `Documents\Sahne Plus`. The application connects only to the third-party services it needs: KickBot (donations), Kick's public chat feed (subscriptions) and baha24.com / bonbast.com (exchange rate). There are no analytics, telemetry, crash reports, ads or automatic updates. Your KickBot widget key is stored encrypted with Windows DPAPI and is never shown or logged. Full details: [PRIVACY.md](PRIVACY.md).
+
+## Build from source
+
+Requirements: Windows, Node.js 22+, npm.
+
+```bash
+git clone https://github.com/AmirEyZed/sahne-plus.git
+cd sahne-plus
+npm ci          # Electron 43 + electron-builder (dev only)
+npm test        # unit tests
+npm run format  # Prettier (checked in CI)
+npm start       # run from source
+npm run dist    # Windows installer in dist/
+```
+
+Details, project layout and the rules for pull requests are in [CONTRIBUTING.md](CONTRIBUTING.md). Persian developer notes: [docs/DEVELOPMENT-FA.md](docs/DEVELOPMENT-FA.md).
 
 ## Documents
 
 | Document | What it covers |
 |---|---|
 | [PRIVACY.md](PRIVACY.md) | what is stored locally, every network connection and why, deletion |
-| [TERMS.md](TERMS.md) | terms of use / end-user license for the application |
+| [TERMS.md](TERMS.md) | terms of use for the official builds (third-party services, your content, warranty) |
 | [SECURITY.md](SECURITY.md) | reporting vulnerabilities, supported versions, supply-chain status |
 | [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) | bundled third-party components and fonts with their licenses |
 | [CHANGELOG.md](CHANGELOG.md) | changes in each release |
-| [LICENSE.txt](LICENSE.txt) | copyright and license notice for the application |
+| [LICENSE](LICENSE) · [NOTICE](NOTICE) · [BRANDING.md](BRANDING.md) | Apache-2.0 license, attribution notice, brand/name restrictions |
+| [docs/DATA_FLOW.md](docs/DATA_FLOW.md) | the data-flow and security audit of the implementation |
 
 ## License
 
-Sahne+ is free to use under the [Terms of Use](TERMS.md). The application is currently proprietary: the source code is private and no open-source license applies to it at this time. The maintainer plans to publish the source code in the future; the license for that release will be announced when it happens. See [LICENSE.txt](LICENSE.txt).
-
-© 2026 AmirEyZed. Kick, KickBot, baha24 and Bonbast are trademarks of their respective owners.
+Copyright © 2026 AmirEyZed. Licensed under the [Apache License, Version 2.0](LICENSE). The Sahne / Sahne+ names, symbol and icons are not covered by the license ([BRANDING.md](BRANDING.md)). Bundled fonts are under the SIL Open Font License 1.1. Kick, KickBot, baha24 and Bonbast are trademarks of their respective owners.

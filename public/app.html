@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; frame-src 'self'">
+<title>Sahne Plus</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="i-sahne" viewBox="0 0 120 160"><path fill="currentColor" d="M87 4C94 2 100 7 100 14V63C100 66 98 67.5 95.5 66.2L59 47.5C56 46 54 47.8 54 51V91C54 95.5 50 98 46.2 95.8L18 79C13 76 10 70 10 63V45C10 37 15 30 22 27L82 5C84 4.3 86 4 87 4Z"/><path fill="currentColor" d="M33 156C26 158 20 153 20 146V97C20 94 22 92.5 24.5 93.8L61 112.5C64 114 66 112.2 66 109V69C66 64.5 70 62 73.8 64.2L102 81C107 84 110 90 110 97V115C110 123 105 130 98 133L38 155C36 155.7 34 156 33 156Z"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M10 20v-5h4v5"/></symbol>
+  <symbol id="i-files" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m3 15 5-4 4 3 3-2 6 4"/><circle cx="16" cy="9" r="1.5"/></symbol>
+  <symbol id="i-look" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 2-2s-1-1.5-1-2.5 1-1.5 2-1.5h1.5A4.5 4.5 0 0 0 21 10.5 8 8 0 0 0 12 3Z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7" r="1"/><circle cx="15.5" cy="7.5" r="1"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.5"/><circle cx="10" cy="17" r="2.5"/></symbol>
+  <symbol id="i-logs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h14M5 12h14M5 18h9"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v8"/><path d="M6.5 6.5a8 8 0 1 0 11 0"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3 10 14"/><path d="M21 3 14 21l-4-7-7-4z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m4 16 5-4 4 3 3-2 4 3"/><circle cx="15.5" cy="9.5" r="1.3"/></symbol>
+  <symbol id="i-audio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h3l5 4V6l-5 4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.5 1.5"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.5-1.5"/></symbol>
+  <symbol id="i-gift" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="9" width="18" height="4" rx="1"/><path d="M5 13v7h14v-7M12 9v11"/><path d="M12 9c-2-.5-4-1.5-4-3.5A1.8 1.8 0 0 1 11 4c1 1 1 3 1 5Zm0 0c2-.5 4-1.5 4-3.5A1.8 1.8 0 0 0 13 4c-1 1-1 3-1 5Z"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></symbol>
+  <symbol id="i-skip" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5.5v13l8-6.5zM16 5.5h2v13h-2z"/></symbol>
+  <symbol id="i-min" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M1 6h10"/></symbol>
+  <symbol id="i-max" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1.5" y="1.5" width="9" height="9" rx="1"/></symbol>
+  <symbol id="i-close" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><path d="M1.5 1.5 10.5 10.5M10.5 1.5 1.5 10.5"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 20V4M4 20h16"/><path d="m7 15 4-5 3 3 5-6"/></symbol>
+  <symbol id="i-queue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h8"/><path d="m17 15 2 2 3-3"/></symbol>
+  <symbol id="i-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></symbol>
+</svg>
+
+<div class="chrome" id="chrome">
+  <div class="title"><svg><use href="#i-sahne"/></svg><span class="latin">Sahne Plus</span></div>
+  <div class="win-controls">
+    <button id="wMin" title="کوچک کردن"><svg><use href="#i-min"/></svg></button>
+    <button id="wMax" title="بزرگ کردن"><svg><use href="#i-max"/></svg></button>
+    <button id="wClose" class="close" title="بستن (اجرا در پس‌زمینه)"><svg><use href="#i-close"/></svg></button>
+  </div>
+</div>
+
+<div class="shell" id="shell">
+  <aside class="rail">
+    <div class="brand">
+      <div class="mark"><svg><use href="#i-sahne"/></svg><span class="plus">+</span></div>
+      <div><h1>صحنه پلاس</h1><small id="brandVer">Sahne Plus</small></div>
+    </div>
+    <nav class="nav" id="nav">
+      <div class="capsule" id="capsule"></div>
+      <button data-page="home" class="active"><svg><use href="#i-home"/></svg>صفحه اصلی</button>
+      <button data-page="files"><svg><use href="#i-files"/></svg>فایل‌ها<span class="badge" id="navFiles">0</span></button>
+      <button data-page="look"><svg><use href="#i-look"/></svg>ظاهر الرت</button>
+      <button data-page="settings"><svg><use href="#i-settings"/></svg>تنظیمات</button>
+      <button data-page="logs"><svg><use href="#i-logs"/></svg>لاگ</button>
+      <button data-page="about"><svg><use href="#i-info"/></svg>درباره</button>
+    </nav>
+    <div class="rail-status">
+      <div class="status-pill" id="stKb"><span class="dot"></span>کیک‌بات (دونیت)</div>
+      <div class="status-pill" id="stKick"><span class="dot"></span>چت کیک (ساب)</div>
+      <div class="status-pill" id="stOv"><span class="dot"></span>Browser Source<span class="v num" id="stOvN">0</span></div>
+    </div>
+    <button class="exit" id="btnExit"><svg><use href="#i-power"/></svg>خروج</button>
+  </aside>
+
+  <main class="content" id="content">
+    <div class="drop-veil">فایل‌ها رو اینجا رها کن</div>
+
+    <!-- HOME -->
+    <section class="page active" data-page="home">
+      <div class="page-head"><div><h2>صفحه اصلی</h2><p>وضعیت اتصال‌ها، صف پخش و تست سریع.</p></div>
+        <div class="actions"><button class="btn" id="hMeld" title="اگر لایه در Meld صفحه خطا نشان می‌دهد"><svg><use href="#i-refresh"/></svg>ری‌لود لایه در Meld</button><button class="btn primary" id="hCopyUrl"><svg><use href="#i-copy"/></svg>کپی لینک Browser Source</button></div>
+      </div>
+      <div class="card setup" id="setupCard" hidden>
+        <h3><svg><use href="#i-link"/></svg>راه‌اندازی اولیه</h3>
+        <p class="hint" style="margin:0 0 12px">لینک ویجت دونیت کیک‌بات خودت رو اینجا بچسبون (داشبورد KickBot → Tipping → Widget URL؛ لینکی شبیه <code>https://widgets.kickbot.com/external/tipping/…</code>).</p>
+        <div class="url"><input type="text" id="setupUrl" placeholder="https://widgets.kickbot.com/external/tipping/xxxxxxxx%3Axxxxxxxx"><button class="btn primary" id="btnSetup">اتصال</button></div>
+        <p class="hint" id="setupMsg"></p>
+      </div>
+      <div class="bento">
+        <div class="card span-4">
+          <h3><svg><use href="#i-pulse"/></svg>وضعیت</h3>
+          <div class="kv"><b>کیک‌بات (دونیت)</b><span class="chip" id="hKb">—</span></div>
+          <div class="kv"><b>چت کیک (ساب / ساب‌گیفت)</b><span class="chip" id="hKick">—</span></div>
+          <div class="kv"><b>Browser Source متصل</b><span class="num" id="hOv">0</span></div>
+          <div class="kv"><b>حالت کار</b><span id="hMode">—</span></div>
+          <div class="kv"><b>نرخ دلار</b><span class="row" style="gap:8px"><span class="pill-num" id="hRate">—</span><span class="hint" style="margin:0" id="hRateMeta"></span><button class="btn sm icon" id="hRateBtn" title="به‌روزرسانی الان"><svg><use href="#i-refresh"/></svg></button></span></div>
+        </div>
+        <div class="card span-4">
+          <h3><svg><use href="#i-queue"/></svg>صف پخش</h3>
+          <div class="kv"><b>در حال پخش</b><span id="sPlaying">—</span></div>
+          <div class="kv"><b>در صف (تایید شده)</b><span class="num" id="sApproved">0</span></div>
+          <div class="kv"><b>در انتظار تایید</b><span class="num" id="sPending">0</span></div>
+          <div class="kv"><b>وضعیت صف کیک‌بات</b><span id="sQueue">—</span></div>
+          <div class="kv"><b>فاصله بین دونیت‌ها</b><span id="sDelay">—</span></div>
+          <div class="row" style="margin-top:12px"><button class="btn sm" id="btnSkip"><svg><use href="#i-skip"/></svg>رد کردن فعلی</button><button class="btn sm danger" id="btnClear"><svg><use href="#i-trash"/></svg>خالی کردن صف</button></div>
+        </div>
+        <div class="card span-4">
+          <h3><svg><use href="#i-send"/></svg>تست سریع<span class="tail">روی Browser Source واقعی نمایش داده می‌شه</span></h3>
+          <div class="grid" style="grid-template-columns:1fr 1fr">
+            <div class="field"><label>اسم</label><input type="text" id="tName" value="AliGamer"></div>
+            <div class="field"><label>مبلغ (دلار)</label><input type="number" id="tAmount" value="10" class="ltr"></div>
+            <div class="field full"><label>پیام</label><input type="text" id="tMsg" value="تست الرت جدید 🔥"></div>
+          </div>
+          <div class="row" style="margin-top:12px">
+            <button class="btn primary" id="btnTest"><svg><use href="#i-send"/></svg>دونیت تستی</button>
+            <button class="btn" id="btnTestSub"><svg><use href="#i-star"/></svg>تست ساب</button>
+            <button class="btn" id="btnTestGift"><svg><use href="#i-gift"/></svg>تست ساب‌گیفت (۳)</button>
+          </div>
+        </div>
+        <div class="card span-7">
+          <h3><svg><use href="#i-logs"/></svg>آخرین آلرت‌ها</h3>
+          <div class="recent" id="recent"><span class="hint">هنوز چیزی نیست</span></div>
+        </div>
+        <div class="card span-5">
+          <h3><svg><use href="#i-chart"/></svg>ساب‌ها چه فایلی می‌گیرن؟<span class="tail">با نرخ فعلی</span></h3>
+          <table class="sim" id="simTable"><thead><tr><th>رویداد</th><th>معادل تومان</th><th>فایل</th></tr></thead><tbody></tbody></table>
+          <p class="hint">هر ساب ۴٫۹۹ دلار × نرخ روز حساب می‌شه، مگر اینکه در تنظیمات مقدار تومانی ثابت داده باشی.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FILES -->
+    <section class="page" data-page="files">
+      <div class="page-head"><div><h2>فایل‌ها</h2><p>هر فایل با مبلغ یا کلمه‌ی کلیدی خودش پخش می‌شه. برای ویرایش، روی کارت کلیک کن.</p></div>
+        <div class="actions"><button class="btn" id="btnOpenFolder"><svg><use href="#i-folder"/></svg>پوشه‌ی فایل‌ها</button><button class="btn" id="btnScan"><svg><use href="#i-refresh"/></svg>اسکن پوشه</button><button class="btn primary" id="btnAdd"><svg><use href="#i-plus"/></svg>افزودن فایل</button><input type="file" id="fileInput" multiple accept="video/*,image/*,audio/*" hidden></div>
+      </div>
+      <div class="row" style="margin-bottom:16px">
+        <div class="search"><svg><use href="#i-search"/></svg><input type="text" id="fSearch" placeholder="جستجو در فایل‌ها…"></div>
+        <div class="seg" id="fSeg">
+          <button data-f="all" class="active">همه<span class="n">0</span></button>
+          <button data-f="video">ویدیو<span class="n">0</span></button>
+          <button data-f="image">تصویر<span class="n">0</span></button>
+          <button data-f="audio">صدا<span class="n">0</span></button>
+          <button data-f="off">غیرفعال<span class="n">0</span></button>
+        </div>
+        <select id="fSort" style="width:170px"><option value="amount">مرتب‌سازی: مبلغ</option><option value="name">مرتب‌سازی: اسم</option><option value="size">مرتب‌سازی: حجم</option></select>
+      </div>
+      <div class="files" id="files"></div>
+      <div class="hint" id="upStatus"></div>
+    </section>
+
+    <!-- LOOK -->
+    <section class="page" data-page="look">
+      <div class="page-head"><div><h2>ظاهر الرت</h2><p>هر تغییری بلافاصله روی Browser Source و پیش‌نمایش اعمال می‌شه.</p></div>
+        <div class="actions"><button class="btn" data-preset="gold">طلایی کلاسیک</button><button class="btn" data-preset="dark">تیره‌ی مدرن</button><button class="btn" data-preset="green">سبز کیک</button></div>
+      </div>
+      <div class="lookgrid">
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <h3>متن و فونت</h3>
+            <div class="grid">
+              <div class="field"><label>فونت</label><select data-a="font"><option value="Vazirmatn">Vazirmatn (وزیرمتن)</option><option value="Estedad">Estedad (استعداد)</option><option value="Lalezar">Lalezar (لاله‌زار)</option><option value="Inter">Inter</option><option value="Poppins">Poppins</option><option value="Segoe UI">Segoe UI (سیستمی ویندوز)</option><option value="Tahoma">Tahoma (سیستمی)</option></select></div>
+              <div class="field"><label>اندازه متن: <span id="lblSize"></span>px</label><input type="range" min="18" max="72" data-a="textSize"></div>
+              <div class="field full"><label>قالب متن دونیت ( {name} اسم، {amount} مبلغ، {toman} تومان، {usd} دلار )</label><input type="text" data-a="template"></div>
+              <div class="field full"><label>قالب متن ساب‌گیفت ( {name} گیفت‌دهنده، {count} تعداد، {amount} معادل )</label><input type="text" data-a="giftTemplate"></div>
+              <div class="field full"><label>قالب متن ساب جدید ( {name} اسم، {count} ماه، {amount} معادل )</label><input type="text" data-a="subTemplate"></div>
+              <div class="field"><label>فرمت مبلغ</label><select data-a="currency"><option value="eq-en">5$ = 1,151,800 Toman</option><option value="eq-fa">۵$ = ۱٬۱۵۱٬۸۰۰ تومان</option><option value="toman">۱٫۱ میلیون تومان (خلاصه)</option><option value="toman-full">۱٬۱۵۶٬۰۰۰ تومان (کامل)</option><option value="toman-both">تومان + دلار</option><option value="dollar-fa">۵ دلار</option><option value="usd">$5</option><option value="usd-code">5 USD</option></select></div>
+              <div class="field"><div class="switch-row"><label class="lbl" style="margin:0">نمایش مبلغ</label><label class="switch"><input type="checkbox" data-a="showAmount"><span></span></label></div><div class="switch-row"><label class="lbl" style="margin:0">نمایش پیام</label><label class="switch"><input type="checkbox" data-a="showMessage"><span></span></label></div><div class="switch-row"><label class="lbl" style="margin:0">اعداد فارسی</label><label class="switch"><input type="checkbox" data-a="persianDigits"><span></span></label></div></div>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom:14px">
+            <h3>رنگ و کادر</h3>
+            <div class="grid">
+              <div class="field"><label>رنگ اسم</label><input type="color" data-a="nameColor"></div>
+              <div class="field"><label>رنگ سرتیتر</label><input type="color" data-a="headlineColor"></div>
+              <div class="field"><label>رنگ پیام</label><input type="color" data-a="textColor"></div>
+              <div class="field"><label>رنگ تاکید</label><input type="color" data-a="accent"></div>
+              <div class="field"><label>رنگ پس‌زمینه کادر</label><input type="color" data-a="bgColor"></div>
+              <div class="field"><label>رنگ حاشیه</label><input type="color" data-a="borderColor"></div>
+              <div class="field"><label>شفافیت پس‌زمینه: <span id="lblOp"></span></label><input type="range" min="0" max="1" step="0.05" data-a="bgOpacity"></div>
+              <div class="field"><label>شفافیت حاشیه: <span id="lblBO"></span></label><input type="range" min="0" max="1" step="0.05" data-a="borderOpacity"></div>
+              <div class="field"><label>عرض کادر: <span id="lblW"></span>px</label><input type="range" min="400" max="1400" step="10" data-a="width"></div>
+              <div class="field"><label>گردی گوشه‌ها: <span id="lblR"></span>px</label><input type="range" min="0" max="60" data-a="radius"></div>
+              <div class="field"><label>فاصله داخلی عمودی: <span id="lblPY"></span>px</label><input type="range" min="6" max="60" data-a="padY"></div>
+              <div class="field"><label>فاصله داخلی افقی: <span id="lblPX"></span>px</label><input type="range" min="6" max="80" data-a="padX"></div>
+              <div class="field"><label>استایل مبلغ</label><select data-a="amountStyle"><option value="pill">داخل پیل رنگی</option><option value="plain">رنگ تاکید، بدون پیل</option><option value="inherit">هم‌رنگ سرتیتر</option><option value="soft">پیل تیره‌ی شیشه‌ای</option></select></div>
+              <div class="field"><div class="switch-row"><label class="lbl" style="margin:0">سایه</label><label class="switch"><input type="checkbox" data-a="shadow"><span></span></label></div><div class="switch-row"><label class="lbl" style="margin:0">براقی بالای کادر</label><label class="switch"><input type="checkbox" data-a="showGloss"><span></span></label></div></div>
+              <div class="field"><div class="switch-row"><label class="lbl" style="margin:0">خط رنگی بالای کارت</label><label class="switch"><input type="checkbox" data-a="showLine"><span></span></label></div><div class="switch-row"><label class="lbl" style="margin:0">هاله‌ی نور</label><label class="switch"><input type="checkbox" data-a="showGlow"><span></span></label></div><div class="switch-row"><label class="lbl" style="margin:0">حاشیه کارت</label><label class="switch"><input type="checkbox" data-a="showBorder"><span></span></label></div></div>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom:14px">
+            <h3>مدیا و جایگاه</h3>
+            <div class="grid">
+              <div class="field"><label>حالت نمایش مدیا</label><select data-a="mediaMode"><option value="full">تمام‌صفحه</option><option value="boxed">کادر بالای متن</option></select></div>
+              <div class="field"><label>برش تمام‌صفحه</label><select data-a="mediaFit"><option value="cover">پر کردن کل صفحه (cover)</option><option value="contain">کامل دیده بشه (contain)</option></select></div>
+              <div class="field"><label>ارتفاع مدیا در حالت کادر: <span id="lblMH"></span>%</label><input type="range" min="20" max="90" data-a="mediaMaxHeight"></div>
+              <div class="field"><label>مدت نمایش تصویر/گیف (ثانیه)</label><input type="number" min="2" max="120" data-a="imageDuration" class="ltr"></div>
+              <div class="field"><label>افقی X (% از چپ)</label><input type="number" min="0" max="100" step="0.5" data-a="cardX" class="ltr"></div>
+              <div class="field"><label>عمودی Y (% از بالا)</label><input type="number" min="0" max="100" step="0.5" data-a="cardY" class="ltr"></div>
+              <div class="field"><label>مقیاس کارت: <span id="lblCS"></span>×</label><input type="range" min="0.4" max="2" step="0.05" data-a="cardScale"></div>
+            </div>
+            <div class="row" style="margin-top:12px">
+              <button class="btn sm" data-pos="50,82">پایین وسط</button><button class="btn sm" data-pos="50,50">وسط</button><button class="btn sm" data-pos="50,14">بالا وسط</button><button class="btn sm" data-pos="20,84">پایین چپ</button><button class="btn sm" data-pos="80,84">پایین راست</button><button class="btn sm" data-pos="20,14">بالا چپ</button><button class="btn sm" data-pos="80,14">بالا راست</button>
+            </div>
+          </div>
+          <div class="card">
+            <h3>انیمیشن و زمان</h3>
+            <div class="grid">
+              <div class="field"><label>انیمیشن</label><select data-a="animation"><option value="pop">پاپ</option><option value="slide">اسلاید</option><option value="fade">فید</option><option value="none">بدون انیمیشن</option></select></div>
+              <div class="field"><label>حداقل مدت نمایش (ثانیه)</label><input type="number" min="2" max="120" data-a="minDuration" class="ltr"></div>
+              <div class="field"><label>حداکثر مدت (ثانیه)</label><input type="number" min="5" max="600" data-a="maxDuration" class="ltr"></div>
+              <div class="field"><label>صدای فایل‌ها: <span id="lblVol"></span>%</label><input type="range" min="0" max="100" data-a="volume"></div>
+              <div class="field"><label>صدای TTS کیک‌بات: <span id="lblTts"></span>%</label><input type="range" min="0" max="100" data-a="ttsVolume"></div>
+            </div>
+          </div>
+        </div>
+        <div class="sticky">
+          <div class="card">
+            <h3>پیش‌نمایش<span class="tail">۱۹۲۰×۱۰۸۰ · کارت رو با ماوس بکش (Shift = وسط)</span></h3>
+            <div class="preview-wrap" id="pw"><iframe id="pv" src="/overlay?preview=1&edit=1"></iframe></div>
+            <div class="row" style="margin-top:12px">
+              <input type="text" id="pvName" value="AliGamer" style="width:130px" placeholder="اسم">
+              <input type="number" id="pvAmount" value="10" style="width:90px" class="ltr" placeholder="مبلغ">
+              <input type="text" id="pvMsg" value="دمت گرم داداش، عالی بود 🔥" style="flex:1;min-width:160px" placeholder="پیام">
+              <button class="btn primary" id="btnPreview"><svg><use href="#i-play"/></svg>پیش‌نمایش</button>
+            </div>
+            <p class="hint">فایل بر اساس قوانین فایل‌ها انتخاب می‌شه و فقط اینجا نمایش داده می‌شه، نه روی استریم.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="page" data-page="settings">
+      <div class="page-head"><div><h2>تنظیمات</h2><p>اتصال به کیک‌بات، ساب‌های کیک، نرخ دلار و رفتار برنامه.</p></div></div>
+      <div class="bento">
+        <div class="card span-6">
+          <h3><svg><use href="#i-link"/></svg>Browser Source برای Meld Studio / OBS</h3>
+          <div class="url"><input type="text" id="ovUrl" readonly><button class="btn" id="btnCopy"><svg><use href="#i-copy"/></svg>کپی</button><button class="btn" id="btnMeld"><svg><use href="#i-refresh"/></svg>ری‌لود در Meld</button></div>
+          <ol class="steps">
+            <li>داخل Meld Studio روی صحنه <b>Add Layer → Browser</b> رو بزن.</li>
+            <li>لینک بالا رو در URL بذار. اندازه <code>1920 × 1080</code>. گزینه صدا (Audio) رو فعال بذار.</li>
+            <li>اگر حالت «جایگزین» انتخاب شده، لایه‌ی Browser قدیمی ویجت کیک‌بات رو حذف کن (وگرنه هر دونیت دوبار نمایش داده می‌شه).</li>
+            <li>Sahne Plus با بستن پنجره در پس‌زمینه می‌مونه (آیکون کنار ساعت). «خروج» یعنی توقف کامل آلرت‌ها.</li>
+          </ol>
+        </div>
+        <div class="card span-6">
+          <h3><svg><use href="#i-settings"/></svg>حالت کار و اتصال کیک‌بات</h3>
+          <div class="field" style="margin-bottom:10px"><label>حالت</label><select id="mode"><option value="standalone">جایگزین ویجت کیک‌بات (پیشنهادی)</option><option value="companion">کنار ویجت کیک‌بات</option></select></div>
+          <p class="hint" style="margin:0 0 10px">جایگزین: پرداخت رو خودش کپچر می‌کنه و TTS و فایل رو پخش می‌کنه. کنار ویجت: ویجت اصلی داخل Meld می‌مونه و این برنامه فقط فایل و متن جدید رو نشون می‌ده.</p>
+          <div class="switch-row"><label class="lbl" style="margin:0">نمایش آلرت متنی وقتی هیچ فایلی با مبلغ جور نیست</label><label class="switch"><input type="checkbox" id="showNoMedia"><span></span></label></div>
+          <div class="row" style="margin-top:4px"><button class="btn primary" id="btnSaveSettings">ذخیره</button></div>
+          <div class="kv" style="margin-top:14px"><b>اتصال کیک‌بات</b><span class="chip" id="kbChip">—</span></div>
+          <div class="kv"><b>Streamer ID</b><span class="num" id="kbStreamer">—</span></div>
+          <div class="kv"><b>کلید ویجت (Secret)</b><span id="kbSecret" class="hint" style="margin:0">—</span></div>
+          <p class="hint">کلید ویجت هرگز نمایش داده نمی‌شود، در لاگ نمی‌آید و در صورت پشتیبانی ویندوز به‌صورت رمزنگاری‌شده (DPAPI) ذخیره می‌شود. هر کسی که این لینک را داشته باشد می‌تواند رویدادهای دونیت شما را دریافت کند؛ آن را با کسی به اشتراک نگذارید.</p>
+          <div class="field" style="margin:10px 0"><label>تغییر اتصال: لینک ویجت جدید</label><div class="url"><input type="text" id="setupUrl2" placeholder="https://widgets.kickbot.com/external/tipping/…" autocomplete="off"><button class="btn" id="btnSetup2">اتصال</button></div><span class="hint" id="setupMsg2"></span></div>
+          <div class="row"><button class="btn danger" id="btnDisconnect"><svg><use href="#i-x"/></svg>قطع اتصال و حذف کلید کیک‌بات</button></div>
+        </div>
+        <div class="card span-6">
+          <h3><svg><use href="#i-gift"/></svg>ساب و ساب‌گیفت کیک<span class="chip" id="kStatus" style="margin-inline-start:auto"></span></h3>
+          <div class="grid">
+            <div class="field"><label>اسم کانال کیک (slug)</label><input type="text" id="kChannel" class="ltr" placeholder="your_channel"></div>
+            <div class="field"><label>ارزش ساب‌گیفت (تومان) — ۰ = خودکار</label><input type="number" id="kGift" min="0" step="10000" class="ltr"></div>
+            <div class="field"><label>ارزش ساب جدید (تومان) — ۰ = خودکار</label><input type="number" id="kSub" min="0" step="10000" class="ltr"></div>
+            <div class="field"><div class="switch-row"><label class="lbl" style="margin:0">فعال</label><label class="switch"><input type="checkbox" id="kEnabled"><span></span></label></div><div class="switch-row"><label class="lbl" style="margin:0">نمایش ساب‌های جدید</label><label class="switch"><input type="checkbox" id="kShowSubs"><span></span></label></div></div>
+          </div>
+          <p class="hint">برای فایل مخصوص ساب، کلمه‌ی کلیدی <code>sub</code> یا <code>giftsub</code> رو در ویرایش فایل بذار.</p>
+          <div class="row" style="margin-top:8px"><button class="btn primary" id="btnSaveKick">ذخیره</button></div>
+        </div>
+        <div class="card span-6">
+          <h3><svg><use href="#i-chart"/></svg>نرخ دلار (baha24، پشتیبان: بن‌بست)<span class="tail"><span class="pill-num" id="rateVal">—</span></span></h3>
+          <div class="grid">
+            <div class="field"><label>هر چند دقیقه یک بار</label><input type="number" id="rateInt" min="1" max="1440" class="ltr"></div>
+            <div class="field"><label>نرخ دستی (تومان) — خالی = خودکار</label><input type="number" id="rateManual" min="0" step="100" class="ltr" placeholder="1150000"></div>
+            <div class="field full"><label>پراکسی برای kick.com و منابع نرخ (اگر فیلتره) — خالی = مستقیم</label><input type="text" id="rateProxy" class="ltr" placeholder="http://127.0.0.1:10809"></div>
+            <div class="field"><div class="switch-row"><label class="lbl" style="margin:0">دریافت خودکار</label><label class="switch"><input type="checkbox" id="rateAuto"><span></span></label></div></div>
+          </div>
+          <div class="row" style="margin-top:12px"><button class="btn primary" id="btnSaveRate">ذخیره</button><button class="btn" id="btnRate"><svg><use href="#i-refresh"/></svg>به‌روزرسانی الان</button><span class="hint" id="rateMeta" style="margin:0"></span></div>
+        </div>
+        <div class="card span-12">
+          <h3><svg><use href="#i-info"/></svg>برنامه</h3>
+          <div class="grid">
+            <div class="field"><div class="switch-row"><label class="lbl" style="margin:0">اجرا هنگام ورود به ویندوز (پس‌زمینه)</label><label class="switch"><input type="checkbox" id="autostart"><span></span></label></div></div>
+            <div class="field"><label>پوشه‌ی داده‌ها</label><div class="row"><input type="text" id="dataDir" readonly class="ltr" style="flex:1"><button class="btn icon" id="btnOpenData" title="باز کردن"><svg><use href="#i-folder"/></svg></button></div></div>
+            <div class="field"><label>نسخه</label><input type="text" id="appVer" readonly class="ltr"></div>
+          </div>
+          <div class="row" style="margin-top:14px">
+            <button class="btn" id="btnResetSettings"><svg><use href="#i-refresh"/></svg>بازگردانی تنظیمات به پیش‌فرض</button>
+            <button class="btn danger" id="btnClearData"><svg><use href="#i-trash"/></svg>پاک کردن همه‌ی داده‌های برنامه</button>
+          </div>
+          <p class="hint">بازگردانی تنظیمات: ظاهر، نرخ، حالت کار و تنظیمات ساب به پیش‌فرض برمی‌گردند؛ فایل‌ها و اتصال کیک‌بات می‌مانند. پاک کردن داده‌ها: همه چیز داخل پوشه‌ی داده حذف می‌شود و برنامه دوباره اجرا می‌شود. فایل‌های اصلی شما در جاهای دیگر دست نمی‌خورند.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section class="page" data-page="about">
+      <div class="page-head"><div><h2>درباره</h2><p>Sahne Plus، حریم خصوصی و شرایط استفاده.</p></div></div>
+      <div class="bento">
+        <div class="card span-6">
+          <h3><svg><use href="#i-sahne"/></svg>Sahne Plus</h3>
+          <div class="kv"><b>نسخه</b><span class="num" id="abVer">—</span></div>
+          <div class="kv"><b>محل داده‌ها</b><span class="latin" id="abData" style="font-size:12px">—</span></div>
+          <div class="kv"><b>سرور محلی</b><span class="latin" id="abServer">http://localhost:7788</span></div>
+          <div class="kv"><b>ذخیره‌ی کلید کیک‌بات</b><span id="abSecret">—</span></div>
+          <div class="kv"><b>تماس امنیتی</b><span class="latin" id="abSec">—</span></div>
+          <div class="row" style="margin-top:12px"><button class="btn" id="abOpenData"><svg><use href="#i-folder"/></svg>باز کردن پوشه‌ی داده</button><button class="btn" id="abOpenLog"><svg><use href="#i-logs"/></svg>فایل لاگ</button></div>
+          <p class="hint" style="margin-top:14px">Sahne Plus یک برنامه‌ی مستقل شخص ثالث است و هیچ وابستگی، تأیید یا حمایتی از سوی Kick، KickBot یا Bonbast ندارد. نام‌ها و لوگوها متعلق به صاحبانشان است.</p>
+          <p class="hint">Sahne Plus متن‌باز است (لایسنس Apache-2.0)؛ کد منبع در github.com/AmirEyZed/sahne-plus. نام و لوگو جزو لایسنس نیستند.</p>
+          <p class="hint">فایل‌های الرت و تنظیمات فقط روی همین کامپیوتر ذخیره می‌شوند. Sahne Plus هیچ سرور ابری، آنالیتیکس، تبلیغات یا گزارش خطای خودکار ندارد. اتصال اینترنتی فقط برای کیک‌بات (دونیت‌ها)، چت کیک (ساب‌ها) و baha24 یا بن‌بست (نرخ دلار) برقرار می‌شود.</p>
+        </div>
+        <div class="card span-6">
+          <h3><svg><use href="#i-info"/></svg>اسناد</h3>
+          <div class="seg" style="margin-bottom:12px"><button data-doc="PRIVACY.md" class="active">حریم خصوصی</button><button data-doc="TERMS.md">شرایط استفاده</button><button data-doc="THIRD_PARTY_NOTICES.md">اجزای شخص ثالث</button><button data-doc="LICENSE.txt">لایسنس Apache-2.0</button><button data-doc="NOTICE.txt">NOTICE</button></div>
+          <pre id="docView" class="log" style="direction:ltr;height:calc(100vh - 360px);font-family:var(--latin);font-size:12.5px;white-space:pre-wrap"></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- LOGS -->
+    <section class="page" data-page="logs">
+      <div class="page-head"><div><h2>لاگ</h2><p>ایونت‌های کیک‌بات، ساب‌ها و وضعیت پخش.</p></div>
+        <div class="actions"><button class="btn" id="btnOpenLog"><svg><use href="#i-folder"/></svg>فایل لاگ</button><button class="btn" id="btnClearLog"><svg><use href="#i-trash"/></svg>پاک کردن نمایش</button></div>
+      </div>
+      <div class="log" id="log"></div>
+    </section>
+  </main>
+
+  <aside class="inspector" id="inspector" hidden>
+    <h3><svg><use href="#i-files"/></svg>ویرایش فایل<span class="saved" id="insSaved">ذخیره شد</span><button class="btn sm icon x" id="insClose"><svg><use href="#i-x"/></svg></button></h3>
+    <div class="thumb" id="insThumb"></div>
+    <div class="file-meta" id="insMeta"></div>
+    <div class="fields">
+      <div class="field"><label>اسم نمایشی</label><input type="text" id="iName"></div>
+      <div class="switch-row"><label class="lbl" style="margin:0">فعال</label><label class="switch"><input type="checkbox" id="iEnabled"><span></span></label></div>
+      <div class="field"><label>حداقل مبلغ (تومان) <span class="chip" id="iMinChip"></span></label><input type="number" id="iMin" min="0" step="10000" class="ltr"></div>
+      <div class="field"><label>حداکثر مبلغ (تومان) — خالی = نامحدود</label><input type="number" id="iMax" min="0" step="10000" class="ltr"></div>
+      <div class="field"><label>کلمات کلیدی داخل پیام (با , جدا کن) — خالی = فقط مبلغ</label><input type="text" id="iKw" placeholder="!dance, رقص, sub"></div>
+      <div class="grid" style="grid-template-columns:1fr 1fr">
+        <div class="field"><label>صدا %</label><input type="number" id="iVol" min="0" max="100" class="ltr"></div>
+        <div class="field"><label>قطع بعد از (ثانیه)</label><input type="number" id="iDur" min="1" class="ltr" placeholder="کامل"></div>
+      </div>
+    </div>
+    <div class="foot"><button class="btn" id="iPreview"><svg><use href="#i-play"/></svg>پیش‌نمایش</button><button class="btn danger" id="iDelete"><svg><use href="#i-trash"/></svg>حذف</button></div>
+  </aside>
+</div>
+<div class="toast" id="toast"></div>
+<script src="/app.js"></script>
+</body>
+</html>

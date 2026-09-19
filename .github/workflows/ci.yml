@@ -1,0 +1,33 @@
+# Runs the unit tests on every push and pull request. Does not build the installer.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install (skip the Electron binary; tests do not need it)
+        run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      - name: Test
+        run: npm test
+      - name: Format check (Prettier)
+        run: npm run format:check
+      - name: Secret scan (KickBot widget keys / URLs must never be committed)
+        run: |
+          if grep -rnE "[0-9a-f]{32}(:|%3A)[0-9a-f]{32}|widgets\.kickbot\.com/external/tipping/[0-9a-f]" --exclude-dir=node_modules --exclude-dir=.git . ; then
+            echo "::error::possible KickBot credential in the repository"; exit 1; fi
+          echo "no credentials found"

@@ -1,0 +1,71 @@
+/* Sahne Plus Browser Source styles (extracted so the page can run under a strict CSP) */
+@font-face{font-family:"Vazirmatn";src:url("/fonts/Vazirmatn-wght.woff2") format("woff2");font-weight:100 900;font-display:swap}
+@font-face{font-family:"Inter";src:url("/fonts/InterVariable.woff2") format("woff2");font-weight:100 900;font-display:swap}
+@font-face{font-family:"Estedad";src:url("/fonts/Estedad-wght.woff2") format("woff2");font-weight:100 900;font-display:swap}
+@font-face{font-family:"Lalezar";src:url("/fonts/Lalezar-Regular.ttf") format("truetype");font-weight:400;font-display:swap}
+@font-face{font-family:"Poppins";src:url("/fonts/Poppins-Regular.ttf") format("truetype");font-weight:400;font-display:swap}
+@font-face{font-family:"Poppins";src:url("/fonts/Poppins-Bold.ttf") format("truetype");font-weight:700;font-display:swap}
+:root{
+    --font:'Vazirmatn';
+    --size:34px;
+    --name:#53fc18;
+    --text:#ffffff;
+    --accent:#53fc18;
+    --bg:11 15 12;
+    --bgA:.6;
+    --mediaH:55vh;
+    --width:720px;
+    --radius:26px;
+    --cardX:50; --cardY:82; --cardScale:1;
+    --headline:#ffffff; --border:255 255 255; --borderA:.10; --padY:26px; --padX:34px;
+    --shadow:0 30px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.06) inset;
+  }
+  html,body{margin:0;height:100%;background:transparent;overflow:hidden}
+  body{font-family:var(--font),'Vazirmatn','Segoe UI',Tahoma,sans-serif;color:var(--text)}
+  #stage{position:fixed;inset:0;pointer-events:none}
+
+  /* ---- media ---- */
+  .media{position:absolute;display:none;overflow:hidden;background:transparent}
+  .media video,.media img{display:block}
+  /* boxed: sits above the card, centered on it */
+  .media.boxed{left:calc(var(--cardX) * 1%);top:calc(var(--cardY) * 1%);transform:translate(-50%,calc(-50% - var(--gap)));max-width:min(var(--width),94vw);max-height:var(--mediaH);border-radius:22px;box-shadow:var(--shadow)}
+  .media.boxed video,.media.boxed img{max-width:100%;max-height:var(--mediaH);object-fit:contain}
+  /* fullscreen: fills the whole source */
+  .media.full{inset:0;width:100%;height:100%}
+  .media.full video,.media.full img{width:100%;height:100%;object-fit:var(--fit,cover)}
+
+  /* ---- card ---- */
+  .card{position:absolute;--wv:calc(min(var(--width),94vw) * var(--cardScale));left:clamp(calc(var(--wv) / 2 + 1vw), calc(var(--cardX) * 1%), calc(100% - var(--wv) / 2 - 1vw));top:clamp(6vh, calc(var(--cardY) * 1%), 94vh);transform:translate(-50%,-50%) scale(var(--cardScale));transform-origin:center;
+        width:min(var(--width),94vw);box-sizing:border-box;padding:var(--padY) var(--padX);border-radius:var(--radius);
+        background:rgba(var(--bg)/var(--bgA));backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);
+        border:1px solid rgba(var(--border)/var(--borderA));box-shadow:var(--shadow);text-align:center;overflow:hidden}
+  .card.noborder{border-color:transparent}
+  .card::before{content:"";position:absolute;inset:0 0 auto 0;height:4px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.95}
+  .card.noline::before{display:none}
+  .card::after{content:"";position:absolute;width:60%;height:120%;left:20%;top:-70%;background:radial-gradient(closest-side,color-mix(in srgb,var(--accent) 28%,transparent),transparent);pointer-events:none}
+  .card.noglow::after{display:none}
+  .headline{position:relative;z-index:1;color:var(--headline);font-size:var(--size);font-weight:800;line-height:1.35;letter-spacing:-.01em;text-shadow:0 2px 14px rgba(0,0,0,.45)}
+  .headline b{color:var(--name);font-weight:900}
+  .headline .amt{display:inline-block;color:#06120a;background:var(--accent);padding:.05em .55em;border-radius:.6em;font-weight:900;margin:0 .15em;box-shadow:0 6px 22px color-mix(in srgb,var(--accent) 45%,transparent)}
+  .headline .amt.plain{background:none;color:var(--accent);box-shadow:none;padding:0}
+  .headline .amt.soft{background:rgba(255,255,255,.10);color:var(--headline);box-shadow:none;border:1px solid rgba(255,255,255,.18);padding:.02em .5em;font-weight:800}
+  .card.gloss{background-image:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,0) 48%);box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.14)}
+  .headline .amt.inherit{background:none;color:inherit;box-shadow:none;padding:0;margin:0}
+  .msg{position:relative;z-index:1;margin-top:14px;font-size:calc(var(--size)*.68);font-weight:500;line-height:1.7;opacity:.95;word-break:break-word;white-space:pre-wrap;max-height:6.8em;overflow:hidden}
+  .badge{position:absolute;top:12px;inset-inline-start:14px;font-size:12px;background:#f33;color:#fff;padding:2px 8px;border-radius:8px;font-weight:700;z-index:2;display:none}
+  .test .badge{display:block}
+
+  /* entrance/exit animations are driven by JS (Web Animations API) so a host that
+     pauses CSS animations (e.g. offscreen browser sources) never leaves the card invisible */
+  @keyframes shine{0%{transform:translateX(-140%) skewX(-20deg)}100%{transform:translateX(240%) skewX(-20deg)}}
+  .card .shine{position:absolute;top:0;bottom:0;width:30%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.14),transparent);animation:shine 1.6s .3s ease-out 1;pointer-events:none}
+
+  /* ---- editor (preview only) ---- */
+  body.edit #stage{pointer-events:auto}
+  body.edit .card{cursor:grab;outline:2px dashed rgba(83,252,24,.7);outline-offset:6px}
+  body.edit .card.dragging{cursor:grabbing;outline-style:solid}
+  .guide{position:absolute;display:none;background:rgba(83,252,24,.35);pointer-events:none}
+  body.edit .guide.v{display:block;left:50%;top:0;width:2px;height:100%}
+  body.edit .guide.h{display:block;top:50%;left:0;height:2px;width:100%}
+  .hint{position:absolute;left:50%;top:24px;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#cfe;padding:8px 18px;border-radius:12px;font-size:22px;display:none;pointer-events:none}
+  body.edit .hint{display:block}

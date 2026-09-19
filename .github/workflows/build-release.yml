@@ -1,0 +1,74 @@
+# Builds the Windows installer from the tagged source on a GitHub-hosted runner, attests its provenance,
+# and publishes the GitHub Release with the installer, SHA256SUMS.txt and the Persian guide.
+# Trigger: push a tag v<version> that matches package.json "version" (e.g. v1.3.0).
+name: build-release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write      # create the release and upload assets
+  id-token: write      # sign the provenance attestation
+  attestations: write  # store the attestation
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Check that the tag matches package.json
+        shell: pwsh
+        run: |
+          $pkg = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $tag = "${{ github.ref_name }}".TrimStart("v")
+          if ($pkg -ne $tag) { Write-Error "tag $tag does not match package.json version $pkg"; exit 1 }
+          "version $pkg" | Out-Host
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build installer (unsigned)
+        run: npm run dist
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Checksums
+        shell: pwsh
+        run: |
+          $lines = Get-ChildItem dist\*.exe | ForEach-Object { "{0} *{1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name }
+          $lines | Set-Content -Path dist\SHA256SUMS.txt -Encoding ascii
+          Get-Content dist\SHA256SUMS.txt
+
+      - name: Attest build provenance (public repositories only; GitHub offers no attestations for private ones)
+        if: ${{ !github.event.repository.private }}
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/*.exe
+
+      - name: Release notes
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart("v")
+          $notes = "docs/RELEASE_NOTES_$v.md"
+          if (-not (Test-Path $notes)) { $notes = "docs/RELEASE_TEMPLATE.md" }
+          Copy-Item $notes dist\NOTES.md
+          Copy-Item docs\README-FA.txt dist\README-FA.txt
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $files = @((Get-ChildItem dist\*.exe).FullName) + "dist\SHA256SUMS.txt" + "dist\README-FA.txt"
+          gh release create $tag --repo "${{ github.repository }}" --title "Sahne+ $($tag.TrimStart('v'))" --notes-file dist\NOTES.md --latest @files

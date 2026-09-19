@@ -1,0 +1,95 @@
+{
+  "name": "sahne-plus",
+  "productName": "Sahne Plus",
+  "version": "1.3.0",
+  "description": "Sahne Plus — Kick / KickBot donation, sub and gift-sub alerts with local transparent media",
+  "author": "AmirEyZed",
+  "license": "Apache-2.0",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/server.test.js && node test/overlay-xss.test.js",
+    "icons": "electron scripts/render-icons.js",
+    "screenshots": "electron scripts/capture-pages.js",
+    "dist": "electron-builder --win --x64 --publish never",
+    "dist:dir": "electron-builder --win --x64 --dir --publish never",
+    "format": "prettier --write \"server/*.js\" \"public/*.js\" \"electron/*.js\" \"test/*.js\" \"scripts/*.js\"",
+    "format:check": "prettier --check \"server/*.js\" \"public/*.js\" \"electron/*.js\" \"test/*.js\" \"scripts/*.js\""
+  },
+  "devDependencies": {
+    "electron": "43.7.3",
+    "electron-builder": "^26.0.12",
+    "prettier": "3.9.8"
+  },
+  "build": {
+    "appId": "com.amireyzed.sahneplus",
+    "productName": "Sahne Plus",
+    "copyright": "Copyright © 2026 AmirEyZed",
+    "asar": true,
+    "compression": "normal",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      "server/**/*",
+      "public/**/*",
+      "build/icon.png",
+      "build/tray.png",
+      "package.json",
+      "LICENSE",
+      "NOTICE"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "Sahne-Plus-Setup-${version}.${ext}",
+      "signAndEditExecutable": true,
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "shortcutName": "Sahne Plus",
+      "uninstallDisplayName": "Sahne Plus",
+      "deleteAppDataOnUninstall": false,
+      "allowElevation": true,
+      "include": "build/installer.nsh"
+    },
+    "electronFuses": {
+      "runAsNode": false,
+      "enableCookieEncryption": true,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true,
+      "loadBrowserProcessSpecificV8Snapshot": false,
+      "grantFileProtocolExtraPrivileges": false,
+      "resetAdHocDarwinSignature": false
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AmirEyZed/sahne-plus.git"
+  },
+  "homepage": "https://github.com/AmirEyZed/sahne-plus#readme",
+  "bugs": {
+    "url": "https://github.com/AmirEyZed/sahne-plus/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
