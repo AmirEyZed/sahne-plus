@@ -46,7 +46,8 @@ jobs:
         shell: pwsh
         run: |
           $lines = Get-ChildItem dist\*.exe | ForEach-Object { "{0} *{1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name }
-          $lines | Set-Content -Path dist\SHA256SUMS.txt -Encoding ascii
+          # LF line endings, so `sha256sum -c SHA256SUMS.txt` also works on Linux/macOS
+          [IO.File]::WriteAllText("$PWD\dist\SHA256SUMS.txt", (($lines -join "`n") + "`n"))
           Get-Content dist\SHA256SUMS.txt
 
       - name: Attest build provenance (public repositories only; GitHub offers no attestations for private ones)
