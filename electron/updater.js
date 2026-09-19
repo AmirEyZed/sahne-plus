@@ -56,8 +56,18 @@ function createUpdater({ version, canInstall, dryRun, log, onChange }) {
     });
   }
 
-  async function check() {
-    if (busy()) return { ...st };
+  // A manual check that arrives while the periodic one is still running gets the same answer, not a "checking" state.
+  let inflight = null;
+  function check() {
+    if (inflight) return inflight;
+    if (busy()) return Promise.resolve({ ...st });
+    inflight = doCheck().finally(() => {
+      inflight = null;
+    });
+    return inflight;
+  }
+
+  async function doCheck() {
     const before = st.status;
     set({ status: 'checking', error: null });
     try {
@@ -69,7 +79,13 @@ function createUpdater({ version, canInstall, dryRun, log, onChange }) {
       if (newer && before !== 'available')
         log('info', 'نسخه‌ی جدید Sahne Plus منتشر شده', { current: version, latest });
     } catch (e) {
-      set({ status: 'error', error: 'بررسی آپدیت ناموفق بود؛ اینترنت را بررسی کنید', checkedAt: Date.now() });
+      // a failed re-check (network down) must not hide an update that is already known
+      const known = before === 'available' && st.latest && core.isNewer(st.latest, version);
+      set(
+        known
+          ? { status: 'available', checkedAt: Date.now() }
+          : { status: 'error', error: 'بررسی آپدیت ناموفق بود؛ اینترنت را بررسی کنید', checkedAt: Date.now() }
+      );
       log('warn', 'بررسی آپدیت ناموفق بود', e.message);
     }
     return { ...st };
