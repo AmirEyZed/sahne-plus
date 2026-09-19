@@ -2,6 +2,10 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
+## Unreleased
+
+- Fixed: in the file editor the header icon was oversized and the preview collapsed to a thin strip when the window was short (present since 1.0, more visible since 1.3.1 added a field). The panel now scrolls instead of squashing its parts.
+
 ## 1.3.1 — 2026-09-19
 
 - Kick subscriptions behind a filter: Sahne+ now uses the Windows system proxy automatically (for example v2rayN or another VPN app in "system proxy" mode) for kick.com and bonbast.com — after a manually entered proxy and before a direct connection. Only plain HTTP proxies are used; a SOCKS-only setup needs the VPN's TUN mode or a manual HTTP proxy. The detected proxy is shown under the proxy field in Settings.

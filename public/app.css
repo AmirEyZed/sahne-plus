@@ -190,6 +190,8 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
 /* inspector */
 .inspector h3 { margin: 0; font-size: 15px; display: flex; align-items: center; gap: 10px; }
 .inspector h3 .x { margin-inline-start: auto; }
+.inspector h3 > svg { width: 18px; height: 18px; color: var(--apricot); flex: none; }
+.inspector > * { flex: none; } /* the panel scrolls; its parts must never be squashed (the preview used to collapse) */
 .inspector .thumb { width: 100%; aspect-ratio: 16 / 9; border-radius: var(--r-card); overflow: hidden; background: repeating-conic-gradient(rgba(247, 245, 242, .05) 0 25%, transparent 0 50%) 0 0 / 22px 22px; border: 1px solid var(--border); display: grid; place-items: center; }
 .inspector .thumb video, .inspector .thumb img { width: 100%; height: 100%; object-fit: contain; }
 .inspector .file-meta { color: var(--muted); font-size: 11px; font-family: var(--latin); direction: ltr; text-align: start; word-break: break-all; }
