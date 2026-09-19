@@ -11,11 +11,13 @@ const {
   nativeImage,
   clipboard,
   safeStorage,
-  session
+  session,
+  Notification
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { createServer, typeOf, parsePacProxy } = require('../server/server');
+const { createUpdater } = require('./updater');
 
 const APP_NAME = 'Sahne Plus';
 const VERSION = app.getVersion();
@@ -340,6 +342,52 @@ app.on('web-contents-created', (e, wc) => {
   wc.on('will-attach-webview', ev => ev.preventDefault());
 });
 
+// ---------- updates: check GitHub Releases; install only after the user clicks (never silent, never automatic) ----------
+// Only an installed Windows build replaces itself. A test instance can download + verify in dry-run mode
+// (SAHNE_PLUS_UPDATE_DRYRUN=1) and pretend to be an older version (SAHNE_PLUS_UPDATE_TEST_VERSION) - it never installs.
+const UPDATE_DRY_RUN = TEST_INSTANCE && process.env.SAHNE_PLUS_UPDATE_DRYRUN === '1';
+const CAN_SELF_UPDATE = (app.isPackaged && process.platform === 'win32' && !TEST_INSTANCE) || UPDATE_DRY_RUN;
+const UPDATE_VERSION = (TEST_INSTANCE && process.env.SAHNE_PLUS_UPDATE_TEST_VERSION) || VERSION;
+const UPDATE_EVERY_MS = 6 * 60 * 60 * 1000;
+let updater = null;
+function sendUpdate(s) {
+  if (win && !win.isDestroyed()) win.webContents.send('update:status', s);
+}
+function updateChecksEnabled() {
+  return !(server && server.config.app && server.config.app.updateCheck === false);
+}
+function notifyUpdate(s) {
+  // one Windows notification per new version; the banner inside the app stays until the update is installed
+  try {
+    const cfg = server.config.app;
+    if (TEST_INSTANCE || cfg.updateNotifiedFor === s.latest || !Notification.isSupported()) return;
+    cfg.updateNotifiedFor = s.latest;
+    server.saveConfig();
+    const n = new Notification({
+      title: 'نسخه‌ی جدید Sahne Plus',
+      body: 'نسخه‌ی ' + s.latest + ' آماده است. برای آپدیت کلیک کنید.',
+      icon: fs.existsSync(ICON_PNG) ? ICON_PNG : undefined
+    });
+    n.on('click', () => {
+      showWindow();
+      if (updater) sendUpdate(updater.get());
+    });
+    n.show();
+  } catch (e) {
+    fileLog(`[${new Date().toISOString()}] WARN update notification ${e.message}`);
+  }
+}
+async function runUpdateCheck(manual) {
+  if (!updater) return null;
+  if (!manual && !updateChecksEnabled()) return updater.get();
+  const s = await updater.check();
+  if (s.status === 'available' && !manual) notifyUpdate(s);
+  return s;
+}
+ipcMain.handle('update:get', e => (fromMain(e) && updater ? updater.get() : null));
+ipcMain.handle('update:check', e => (fromMain(e) ? runUpdateCheck(true) : null));
+ipcMain.handle('update:install', e => (fromMain(e) && updater ? updater.install(quitApp) : null));
+
 // ---------- lifecycle ----------
 app.whenReady().then(async () => {
   if (!gotLock) return;
@@ -384,6 +432,15 @@ app.whenReady().then(async () => {
   if (imported) server.log('info', 'تنظیمات و فایل‌های KickAlerts قدیمی وارد شد');
   createWindow();
   createTray();
+  updater = createUpdater({
+    version: UPDATE_VERSION,
+    canInstall: CAN_SELF_UPDATE,
+    dryRun: UPDATE_DRY_RUN,
+    log: (level, msg, extra) => server.log(level, msg, extra),
+    onChange: sendUpdate
+  });
+  setTimeout(() => runUpdateCheck(false), 30 * 1000);
+  setInterval(() => runUpdateCheck(false), UPDATE_EVERY_MS);
 });
 app.on('window-all-closed', () => {
   /* keep running in the tray */

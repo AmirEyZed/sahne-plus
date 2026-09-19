@@ -45,7 +45,7 @@ Current supply-chain status (code signing, signed checksums, CI) is kept honest 
 ## Trust & transparency
 
 - Do not assume any executable is safe merely because it is hosted on GitHub; verify checksum and provenance, and download only from this repository's Releases.
-- Everything the application stores and every network connection it makes is documented in [PRIVACY.md](PRIVACY.md) and, in more detail, in [docs/DATA_FLOW.md](docs/DATA_FLOW.md): no cloud backend, no analytics, no telemetry, no automatic updates; connections only to KickBot, Kick's public chat feed and the exchange-rate services.
+- Everything the application stores and every network connection it makes is documented in [PRIVACY.md](PRIVACY.md) and, in more detail, in [docs/DATA_FLOW.md](docs/DATA_FLOW.md): no cloud backend, no analytics, no telemetry; connections only to KickBot, Kick's public chat feed, the exchange-rate services and — for the update check, which can be turned off — GitHub. Updates are installed only after you click.
 - Independent third-party review of 1.2.0: [B3hnamR/SahnePlusReview](https://github.com/B3hnamR/SahnePlusReview) (an independent review, not an official audit; read its scope notes).
 - A second independent code audit of the 1.3.0 source by the same reviewer found two real bugs (image alerts not rendering, a capture failure dropping a donation); both were fixed before release, see [CHANGELOG.md](CHANGELOG.md). Sahne+ has not had a professional security audit.
 - Security reports are handled privately as described in [SECURITY.md](SECURITY.md).
@@ -81,11 +81,12 @@ Alerts play one at a time with a configurable gap. If the Browser Source is clos
 - Optional delay before the name/amount card appears, globally or per file
 - Test donation / subscription / gift buttons (never touch KickBot)
 - Runs in the system tray; optional start with Windows
+- New-version notice inside the app and a one-click update, verified against the release checksum — never automatic
 - All fonts bundled; nothing is loaded from CDNs; zero runtime npm dependencies
 
 ## Privacy
 
-Sahne+ has **no cloud backend**. Your media, settings and logs stay in `Documents\Sahne Plus`. The application connects only to the third-party services it needs: KickBot (donations), Kick's public chat feed (subscriptions) and baha24.com / bonbast.com (exchange rate). There are no analytics, telemetry, crash reports, ads or automatic updates. Your KickBot widget key is stored encrypted with Windows DPAPI and is never shown or logged. Full details: [PRIVACY.md](PRIVACY.md).
+Sahne+ has **no cloud backend**. Your media, settings and logs stay in `Documents\Sahne Plus`. The application connects only to the third-party services it needs: KickBot (donations), Kick's public chat feed (subscriptions) and baha24.com / bonbast.com (exchange rate), plus github.com to check for a new version (can be turned off). There are no analytics, telemetry, crash reports or ads, and updates are installed only when you click «آپدیت». Your KickBot widget key is stored encrypted with Windows DPAPI and is never shown or logged. Full details: [PRIVACY.md](PRIVACY.md).
 
 ## Build from source
 

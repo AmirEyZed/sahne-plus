@@ -177,6 +177,14 @@ test('loopback hardening: Host and Origin checks, traversal, secret never expose
   assert.equal(after.mode, 'standalone');
   assert.equal(after.appearance.textSize, 120);
   assert.match(after.appearance.nameColor, /^#[0-9a-f]{6}$/);
+  const appCfg = async () => JSON.parse((await req('GET', '/api/config')).body).config.app;
+  assert.equal((await appCfg()).updateCheck, true, 'update check is on by default');
+  await req('POST', '/api/config', {
+    headers: { Origin: `http://127.0.0.1:${port}` },
+    body: { app: { updateCheck: false } }
+  });
+  assert.equal((await appCfg()).updateCheck, false, 'update check can be turned off');
+  assert.equal((await appCfg()).autostart, false, 'turning it off does not touch autostart');
   assert.equal((await req('GET', '/fonts/../../package.json')).status, 404, 'traversal');
   assert.equal((await req('GET', '/media/..%5c..%5cconfig.json')).status, 404);
   const onDisk = JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8'));

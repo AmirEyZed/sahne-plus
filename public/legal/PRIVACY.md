@@ -1,8 +1,8 @@
 # Sahne Plus — Privacy Policy
 
-_Last updated: 2026-09-18 · Applies to Sahne Plus 1.1.0 and later_
+_Last updated: 2026-09-19 · Applies to Sahne Plus 1.1.0 and later (the update check exists since 1.3.1)_
 
-**خلاصه‌ی فارسی:** Sahne Plus هیچ سرور ابری ندارد. فایل‌های الرت، تنظیمات و لاگ‌ها فقط روی کامپیوتر شما (پوشه‌ی `Documents\Sahne Plus`) ذخیره می‌شوند. برنامه فقط به سه سرویس شخص ثالث وصل می‌شود که برای کارکردش لازم‌اند: کیک‌بات (دونیت‌ها)، فید چت عمومی کیک (ساب‌ها) و baha24.com یا bonbast.com (نرخ دلار). آنالیتیکس، ردیابی، تبلیغات، گزارش خطای خودکار و به‌روزرسانی خودکار وجود ندارد. ما هیچ داده‌ای از شما دریافت یا فروش نمی‌کنیم، چون اصلاً به ما نمی‌رسد.
+**خلاصه‌ی فارسی:** Sahne Plus هیچ سرور ابری ندارد. فایل‌های الرت، تنظیمات و لاگ‌ها فقط روی کامپیوتر شما (پوشه‌ی `Documents\Sahne Plus`) ذخیره می‌شوند. برنامه فقط به سرویس‌هایی وصل می‌شود که برای کارکردش لازم‌اند: کیک‌بات (دونیت‌ها)، فید چت عمومی کیک (ساب‌ها)، baha24.com یا bonbast.com (نرخ دلار) و از نسخه‌ی ۱.۳.۱ گیت‌هاب، فقط برای دیدن شماره‌ی آخرین نسخه (از «تنظیمات» قابل خاموش کردن است). هیچ آپدیتی بدون کلیک شما دانلود یا نصب نمی‌شود. آنالیتیکس، ردیابی، تبلیغات و گزارش خطای خودکار وجود ندارد. ما هیچ داده‌ای از شما دریافت یا فروش نمی‌کنیم، چون اصلاً به ما نمی‌رسد.
 
 ## 1. Who we are
 
@@ -12,7 +12,7 @@ Sahne Plus is a Windows desktop application published by **AmirEyZed** ("we"). C
 
 - Sahne Plus does **not** operate a cloud backend. Nothing you configure and none of your media is uploaded to us.
 - The application makes network requests **only** to the third-party services required for its features (section 4). Those services receive only what is technically needed.
-- The application contains **no** analytics, telemetry, crash reporting, advertising, tracking or update checks. This was verified against the source code (see `docs/DATA_FLOW.md`), which is public in this repository under the Apache License 2.0 so anyone can check these statements.
+- The application contains **no** analytics, telemetry, crash reporting, advertising or tracking, and it never installs anything on its own. Since 1.3.1 it asks GitHub which version is the latest (can be turned off, see section 4). This was verified against the source code (see `docs/DATA_FLOW.md`), which is public in this repository under the Apache License 2.0 so anyone can check these statements.
 
 ## 3. What Sahne Plus stores on your computer
 
@@ -37,10 +37,13 @@ Electron (the runtime) keeps its own browser profile in `%APPDATA%\SahnePlus` (c
 | **baha24.com** (`/api/v1/price`, public JSON API) | convert dollar donation amounts to toman | a plain GET request, no account, no key | the current USD sell rate |
 | **bonbast.com** (fallback only, when baha24 fails) | same | a page request with a normal desktop browser identity | the current USD sell rate |
 | **Meld Studio** on your own computer (`127.0.0.1:13376`) | reload the Browser Source layer if it lost the connection | the layer URL | layer list |
+| **GitHub** (`github.com`; release files are served from GitHub's release-asset storage), since 1.3.1 | tell you when a new Sahne Plus version exists; download it when you click «آپدیت» | a HEAD request for `github.com/AmirEyZed/sahne-plus/releases/latest` 30 s after start and every 6 hours, with the app version in the User-Agent; after your click, downloads of the installer and `SHA256SUMS.txt` | the latest version number; the installer |
 
 If you configure a proxy in Settings, or Windows has a system proxy (for example a VPN app in "system proxy" mode), the kick.com and bonbast.com requests go through it — the manual proxy first, then the system proxy, then a direct connection — and baha24.com is retried through them if the direct request fails. Only plain HTTP proxies are used. The KickBot connection and Kick's chat feed do not use a proxy.
 
-These third parties process the data they receive under **their own** privacy policies. Sahne Plus cannot control what KickBot, Kick, Pusher, baha24 or Bonbast do with a request once it reaches them.
+The update check can be turned off in Settings → «بررسی خودکار نسخه‌ی جدید». An update is downloaded only when you click «آپدیت»; the installer is verified against the release's `SHA256SUMS.txt` before it runs and replaces the program files only — your data in `Documents\Sahne Plus` stays. Update requests use Chromium's network stack, so a Windows system proxy is used automatically.
+
+These third parties process the data they receive under **their own** privacy policies. Sahne Plus cannot control what KickBot, Kick, Pusher, baha24, Bonbast or GitHub do with a request once it reaches them.
 
 The Browser Source page (the page you add to OBS / Meld Studio) additionally loads KickBot TTS audio and, when a donation carries one, the GIF URL supplied by KickBot. All fonts are bundled; the Browser Source loads nothing from Google or any CDN.
 
@@ -54,7 +57,7 @@ Donation and subscription events contain the names and messages of your viewers.
 - No analytics or telemetry SDKs are included.
 - No crash reports are sent anywhere; errors go to the local log only.
 - No advertising.
-- No automatic updates or update checks. New versions are published manually on GitHub Releases; you decide whether to download them.
+- No automatic installs. Since 1.3.1 the app checks GitHub for a newer version (can be turned off) and shows a notice; an update is downloaded and installed only after you click «آپدیت».
 
 ## 7. Deleting your data
 

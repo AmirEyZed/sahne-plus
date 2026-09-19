@@ -29,6 +29,14 @@ contextBridge.exposeInMainWorld('sahne', {
     copy: text => ipcRenderer.invoke('app:copy', String(text)),
     clearData: () => ipcRenderer.invoke('data:clear')
   },
+  update: {
+    get: () => ipcRenderer.invoke('update:get'),
+    check: () => ipcRenderer.invoke('update:check'),
+    install: () => ipcRenderer.invoke('update:install'),
+    onStatus: cb => {
+      ipcRenderer.on('update:status', (e, s) => cb(s && typeof s === 'object' ? { ...s } : null));
+    }
+  },
   files: {
     pick: () => ipcRenderer.invoke('files:pick'),
     importDropped: fileList => {

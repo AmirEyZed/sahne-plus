@@ -34,7 +34,7 @@ How the application handles data is described in [PRIVACY.md](PRIVACY.md).
 
 ## 6. Updates
 
-Updates are published manually on the Releases page; the application contains no automatic update mechanism and never contacts the maintainer.
+Updates are published on the Releases page. Since 1.3.1 the application checks GitHub for a newer version (can be turned off in Settings) and installs an update only after you click «آپدیت»; it never installs anything on its own and never contacts the maintainer.
 
 ## 7. No warranty, limitation of liability
 

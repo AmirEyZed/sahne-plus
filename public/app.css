@@ -231,3 +231,7 @@ table.sim td.num { color: var(--text-2); }
 /* setup banner */
 .setup { border-color: rgba(217, 182, 109, .4); background: linear-gradient(135deg, rgba(217, 182, 109, .08), transparent); }
 .hint.kick-hint { color: var(--warning); }
+.update-bar { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; padding: 10px 14px; border-radius: 16px; background: rgba(210, 180, 163, .12); border: 1px solid rgba(210, 180, 163, .35); font-size: 13px; }
+.update-bar[hidden] { display: none; }
+.update-bar > svg { width: 18px; height: 18px; color: var(--apricot); flex: none; }
+.update-bar .grow { flex: 1; }

@@ -75,6 +75,7 @@
 
   <main class="content" id="content">
     <div class="drop-veil">فایل‌ها رو اینجا رها کن</div>
+    <div class="update-bar" id="updBar" hidden><svg><use href="#i-refresh"/></svg><span id="updText"></span><span class="grow"></span><button class="btn sm" id="updNotes">تغییرات</button><button class="btn sm primary" id="updGo">آپدیت</button><button class="btn sm icon" id="updLater" title="بعداً"><svg><use href="#i-x"/></svg></button></div>
 
     <!-- HOME -->
     <section class="page active" data-page="home">
@@ -285,6 +286,7 @@
           <h3><svg><use href="#i-info"/></svg>برنامه</h3>
           <div class="grid">
             <div class="field"><div class="switch-row"><label class="lbl" style="margin:0">اجرا هنگام ورود به ویندوز (پس‌زمینه)</label><label class="switch"><input type="checkbox" id="autostart"><span></span></label></div></div>
+            <div class="field"><div class="switch-row"><label class="lbl" style="margin:0">بررسی خودکار نسخه‌ی جدید (از GitHub، هر ۶ ساعت)</label><label class="switch"><input type="checkbox" id="updCheck"><span></span></label></div></div>
             <div class="field"><label>پوشه‌ی داده‌ها</label><div class="row"><input type="text" id="dataDir" readonly class="ltr" style="flex:1"><button class="btn icon" id="btnOpenData" title="باز کردن"><svg><use href="#i-folder"/></svg></button></div></div>
             <div class="field"><label>نسخه</label><input type="text" id="appVer" readonly class="ltr"></div>
           </div>
@@ -308,10 +310,11 @@
           <div class="kv"><b>سرور محلی</b><span class="latin" id="abServer">http://localhost:7788</span></div>
           <div class="kv"><b>ذخیره‌ی کلید کیک‌بات</b><span id="abSecret">—</span></div>
           <div class="kv"><b>تماس امنیتی</b><span class="latin" id="abSec">—</span></div>
-          <div class="row" style="margin-top:12px"><button class="btn" id="abOpenData"><svg><use href="#i-folder"/></svg>باز کردن پوشه‌ی داده</button><button class="btn" id="abOpenLog"><svg><use href="#i-logs"/></svg>فایل لاگ</button></div>
+          <div class="kv"><b>آپدیت</b><span id="abUpd">—</span></div>
+          <div class="row" style="margin-top:12px"><button class="btn" id="abCheckUpd"><svg><use href="#i-refresh"/></svg>بررسی آپدیت</button><button class="btn" id="abOpenData"><svg><use href="#i-folder"/></svg>باز کردن پوشه‌ی داده</button><button class="btn" id="abOpenLog"><svg><use href="#i-logs"/></svg>فایل لاگ</button></div>
           <p class="hint" style="margin-top:14px">Sahne Plus یک برنامه‌ی مستقل شخص ثالث است و هیچ وابستگی، تأیید یا حمایتی از سوی Kick، KickBot یا Bonbast ندارد. نام‌ها و لوگوها متعلق به صاحبانشان است.</p>
           <p class="hint">Sahne Plus متن‌باز است (لایسنس Apache-2.0)؛ کد منبع در github.com/AmirEyZed/sahne-plus. نام و لوگو جزو لایسنس نیستند.</p>
-          <p class="hint">فایل‌های الرت و تنظیمات فقط روی همین کامپیوتر ذخیره می‌شوند. Sahne Plus هیچ سرور ابری، آنالیتیکس، تبلیغات یا گزارش خطای خودکار ندارد. اتصال اینترنتی فقط برای کیک‌بات (دونیت‌ها)، چت کیک (ساب‌ها) و baha24 یا بن‌بست (نرخ دلار) برقرار می‌شود.</p>
+          <p class="hint">فایل‌های الرت و تنظیمات فقط روی همین کامپیوتر ذخیره می‌شوند. Sahne Plus هیچ سرور ابری، آنالیتیکس، تبلیغات یا گزارش خطای خودکار ندارد. اتصال اینترنتی فقط برای کیک‌بات (دونیت‌ها)، چت کیک (ساب‌ها) و baha24 یا بن‌بست (نرخ دلار) برقرار می‌شود. برای بررسی نسخه‌ی جدید هم به GitHub وصل می‌شود (در «تنظیمات» قابل خاموش کردن است) و آپدیت فقط با کلیک شما نصب می‌شود.</p>
         </div>
         <div class="card span-6">
           <h3><svg><use href="#i-info"/></svg>اسناد</h3>

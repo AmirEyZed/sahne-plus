@@ -226,6 +226,8 @@ function fillApp() {
   $('#dataDir').value = INFO ? INFO.dataDir : '';
   $('#autostart').checked = !!(INFO && INFO.autostart);
   $('#autostart').disabled = !DESK;
+  $('#updCheck').checked = !(CFG.app && CFG.app.updateCheck === false);
+  $('#updCheck').disabled = !DESK;
   $('#btnOpenData').disabled = !DESK;
   $('#btnOpenLog').disabled = !DESK;
   $('#btnClearData').disabled = !DESK;
@@ -283,6 +285,96 @@ $('#autostart').onchange = async e => {
   await post('/api/config', { app: { autostart: !!r } });
   toast(r ? 'اجرای خودکار فعال شد' : 'اجرای خودکار غیرفعال شد', 'ok');
 };
+$('#updCheck').onchange = async e => {
+  await post('/api/config', { app: { updateCheck: e.target.checked } });
+  toast(e.target.checked ? 'بررسی خودکار آپدیت روشن شد' : 'بررسی خودکار آپدیت خاموش شد', 'ok');
+};
+// ---------- updates (desktop app only; checking, downloading and verifying happen in the main process) ----------
+let UPD = null,
+  updLater = false;
+function renderUpdate(s) {
+  if (s) UPD = s;
+  const bar = $('#updBar'),
+    ab = $('#abUpd');
+  if (!DESK || !UPD) {
+    bar.hidden = true;
+    ab.textContent = DESK ? '—' : 'فقط در برنامه‌ی دسکتاپ';
+    return;
+  }
+  const v = UPD.latest || '';
+  let txt = '',
+    show = false,
+    busy = false;
+  if (UPD.status === 'available') {
+    txt = 'نسخه‌ی جدید صحنه پلاس (' + v + ') آماده است.' + (UPD.error ? ' ' + UPD.error : '');
+    show = !updLater;
+  } else if (UPD.status === 'downloading') {
+    txt = 'در حال دانلود نسخه‌ی ' + v + '… ' + (UPD.progress || 0) + '٪';
+    show = busy = true;
+  } else if (UPD.status === 'ready') {
+    txt = 'نسخه‌ی ' + v + ' دانلود و با چک‌سام رسمی بررسی شد (حالت تست؛ نصب نمی‌شود).';
+    show = busy = true;
+  } else if (UPD.status === 'installing') {
+    txt = 'در حال نصب نسخه‌ی ' + v + '… برنامه چند ثانیه بسته و دوباره باز می‌شود.';
+    show = busy = true;
+  }
+  bar.hidden = !show;
+  $('#updText').textContent = txt;
+  $('#updGo').disabled = busy;
+  $('#updGo').textContent = UPD.canInstall ? 'آپدیت' : 'دانلود';
+  $('#updLater').style.display = busy ? 'none' : '';
+  const labels = {
+    idle: 'هنوز بررسی نشده',
+    checking: 'در حال بررسی…',
+    uptodate: 'به‌روز است (' + UPD.current + ')',
+    available: 'نسخه‌ی ' + v + ' آمده',
+    downloading: 'در حال دانلود…',
+    ready: 'دانلود شد (تست)',
+    installing: 'در حال نصب…',
+    error: UPD.error || 'بررسی ناموفق بود'
+  };
+  ab.textContent = labels[UPD.status] || '—';
+}
+if (DESK && window.sahne.update) {
+  window.sahne.update.onStatus(renderUpdate);
+  window.sahne.update
+    .get()
+    .then(renderUpdate)
+    .catch(() => {});
+  $('#updGo').onclick = async () => {
+    if (!UPD) return;
+    if (!UPD.canInstall) {
+      if (UPD.page) window.sahne.app.openExternal(UPD.page);
+      return;
+    }
+    if (
+      !confirm(
+        'نسخه‌ی ' +
+          UPD.latest +
+          ' دانلود و نصب شود؟ برنامه چند ثانیه بسته و دوباره باز می‌شود؛ تنظیمات و فایل‌ها سر جایشان می‌مانند.'
+      )
+    )
+      return;
+    renderUpdate(await window.sahne.update.install());
+  };
+  $('#updNotes').onclick = () => UPD && UPD.page && window.sahne.app.openExternal(UPD.page);
+  $('#updLater').onclick = () => {
+    updLater = true;
+    renderUpdate();
+  };
+  $('#abCheckUpd').onclick = async () => {
+    updLater = false;
+    const s = await window.sahne.update.check();
+    renderUpdate(s);
+    if (!s) return;
+    if (s.status === 'uptodate') toast('صحنه پلاس به‌روز است', 'ok');
+    else if (s.status === 'available') toast('نسخه‌ی ' + s.latest + ' آمده است', 'ok');
+    else toast(s.error || 'بررسی آپدیت ناموفق بود', 'err');
+  };
+} else {
+  $('#abCheckUpd').disabled = true;
+  renderUpdate(null);
+}
 $('#btnOpenData').onclick = () => DESK && window.sahne.app.openPath('data');
 $('#btnOpenLog').onclick = () => DESK && window.sahne.app.openPath('log');
 $('#btnClearLog').onclick = () => {

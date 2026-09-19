@@ -49,6 +49,7 @@ In scope:
 - the Browser Source executing injected content from a donation name or message;
 - imported media files causing code execution or path traversal;
 - the Electron shell (IPC, preload bridge, navigation, permissions) and the installer doing anything not described in [PRIVACY.md](PRIVACY.md);
+- the in-app updater (`electron/updater.js`): downloading from anywhere but this repository's Releases, running a file that does not match the release's `SHA256SUMS.txt`, or installing without the user's click;
 - the release workflow (a way to get an unofficial binary attested or published as official).
 
 Out of scope: KickBot, Kick, Pusher, baha24 and Bonbast themselves (report issues in those services to their owners); social engineering; issues that require a compromised Windows account.
@@ -66,5 +67,5 @@ Honest current state, so nobody over-trusts a release:
 | Windows code signing (Authenticode) | **not yet** — installers are unsigned; SmartScreen warns |
 | Signed checksums (GPG / minisign) | **not yet** |
 | Reproducible builds | **not verified** — electron-builder output is not guaranteed bit-for-bit reproducible |
-| Automatic updates | **none** — updates are manual downloads from the Releases page |
+| Updates | **update check + one-click update since 1.3.1** — the app checks this repository's latest release (can be turned off); an update is downloaded only after the user clicks, verified against the release's `SHA256SUMS.txt` and installed with the official installer. Never silent or automatic. The checksum comes from the same release, so authenticity rests on this GitHub account (protected with two-factor authentication); the installer is not code-signed |
 | Runtime npm dependencies | **none** — only Node built-ins and Electron |

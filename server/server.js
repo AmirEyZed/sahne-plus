@@ -93,7 +93,7 @@ const DEFAULT_CONFIG = {
     subValueToman: 0,
     showNewSubs: true
   },
-  app: { autostart: true }
+  app: { autostart: true, updateCheck: true, updateNotifiedFor: null }
 };
 const FONTS = ['Vazirmatn', 'Estedad', 'Lalezar', 'Inter', 'Poppins', 'Segoe UI', 'Tahoma'];
 const ENUMS = {
@@ -379,6 +379,9 @@ function createServer(opts) {
       kick: { ...DEFAULT_CONFIG.kick, ...(c.kick || {}) },
       app: { ...DEFAULT_CONFIG.app, ...(c.app || {}) }
     };
+    merged.app.updateCheck = merged.app.updateCheck !== false;
+    if (!/^\d{1,4}\.\d{1,4}\.\d{1,4}$/.test(String(merged.app.updateNotifiedFor || '')))
+      merged.app.updateNotifiedFor = null;
     // secret: encrypted field preferred; legacy plaintext migrated on first save
     if (c.secret_id_enc && store && store.available()) {
       try {
@@ -1871,7 +1874,8 @@ function createServer(opts) {
         if (body.app && typeof body.app === 'object')
           config.app = {
             ...config.app,
-            autostart: body.app.autostart === undefined ? config.app.autostart : !!body.app.autostart
+            autostart: body.app.autostart === undefined ? config.app.autostart : !!body.app.autostart,
+            updateCheck: body.app.updateCheck === undefined ? config.app.updateCheck !== false : !!body.app.updateCheck
           };
         if (body.kick && typeof body.kick === 'object') {
           const k = body.kick,
