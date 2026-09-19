@@ -230,3 +230,4 @@ table.sim td.num { color: var(--text-2); }
 
 /* setup banner */
 .setup { border-color: rgba(217, 182, 109, .4); background: linear-gradient(135deg, rgba(217, 182, 109, .08), transparent); }
+.hint.kick-hint { color: var(--warning); }

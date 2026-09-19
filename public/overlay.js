@@ -154,7 +154,20 @@
     el.appendChild(card);
     stage.appendChild(el);
     current = { el, tip, timers: [], media: [] };
-    animate(card, 'in');
+    // Optional delay before the name/amount card (and the TTS) appears: per file first, else the appearance setting.
+    const delayS = tip.media && tip.media.cardDelay != null ? Number(tip.media.cardDelay) : Number(A.cardDelay || 0);
+    const cardDelayMs =
+      Number.isFinite(delayS) && delayS > 0
+        ? Math.min(delayS * 1000, Math.max(0, (A.maxDuration || 90) * 1000 - 1500))
+        : 0;
+    const ttsUrl = tip.tts_url ? safeUrl(tip.tts_url) : null;
+    let ttsDone = () => {};
+    const showCard = () => {
+      if (!current || current.el !== el) return;
+      card.style.visibility = '';
+      animate(card, 'in');
+      if (ttsUrl) playTts(ttsUrl, clamp((A.ttsVolume ?? 70) / 100)).then(ttsDone, ttsDone);
+    };
     animate(mediaBox, 'in', true);
 
     const vol = clamp((A.volume ?? 80) / 100);
@@ -230,12 +243,16 @@
       if (tip.gif_url) addImg(tip.gif_url);
     } else if (tip.gif_url) addImg(tip.gif_url);
 
-    if (tip.tts_url && safeUrl(tip.tts_url))
-      waits.push(playTts(safeUrl(tip.tts_url), clamp((A.ttsVolume ?? 70) / 100)));
+    if (ttsUrl) waits.push(new Promise(r => (ttsDone = r)));
+    if (cardDelayMs > 0) {
+      card.style.visibility = 'hidden';
+      current.timers.push(setTimeout(showCard, cardDelayMs));
+    } else showCard();
 
     const minMs = (A.minDuration || 6) * 1000,
       maxMs = (A.maxDuration || 90) * 1000;
-    const minWait = new Promise(r => current.timers.push(setTimeout(r, Math.max(minMs, visualDur || 0))));
+    const cardMinMs = cardDelayMs ? cardDelayMs + Math.min(minMs, 4000) : 0; // a delayed card still stays up for a few seconds
+    const minWait = new Promise(r => current.timers.push(setTimeout(r, Math.max(minMs, visualDur || 0, cardMinMs))));
     const cap = new Promise(r => current.timers.push(setTimeout(r, maxMs)));
     Promise.race([Promise.all([Promise.all(waits), minWait]), cap]).then(() => {
       if (current && current.el === el) end();

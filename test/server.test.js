@@ -6,7 +6,73 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const http = require('http');
-const { createServer, typeOf, parseThreshold, safeMediaName, sniffOk, cleanText, normFa } = require('../server/server');
+const {
+  createServer,
+  typeOf,
+  parseThreshold,
+  safeMediaName,
+  sniffOk,
+  cleanText,
+  normFa,
+  isNetError,
+  parsePacProxy,
+  routeOrder,
+  describeKickFailure
+} = require('../server/server');
+
+test('system proxy parsing, route order and readable Kick errors (1.3.1)', () => {
+  assert.equal(parsePacProxy('PROXY 127.0.0.1:10809; DIRECT'), 'http://127.0.0.1:10809');
+  assert.equal(parsePacProxy('DIRECT'), '');
+  assert.equal(parsePacProxy('SOCKS5 127.0.0.1:10808'), '', 'SOCKS is not usable by the CONNECT client');
+  assert.equal(parsePacProxy('SOCKS5 127.0.0.1:10808; PROXY localhost:2080'), 'http://localhost:2080');
+  assert.deepEqual(routeOrder({ manual: '', system: 'http://127.0.0.1:10809' }), ['http://127.0.0.1:10809', '']);
+  assert.deepEqual(routeOrder({ manual: 'http://1.2.3.4:8080', system: 'http://1.2.3.4:8080' }), [
+    'http://1.2.3.4:8080',
+    ''
+  ]);
+  assert.deepEqual(routeOrder({ manual: 'http://a:1', system: 'http://b:2', directFirst: true }), [
+    '',
+    'http://a:1',
+    'http://b:2'
+  ]);
+  assert.deepEqual(routeOrder({ manual: 'junk', system: '' }), ['']);
+  const reset = Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' });
+  const refused = Object.assign(new Error('connect ECONNREFUSED 127.0.0.1:10809'), { code: 'ECONNREFUSED' });
+  const http = code => Object.assign(new Error('kick api HTTP ' + code), { httpStatus: code });
+  assert.ok(isNetError(reset) && isNetError(new Error('timeout')) && !isNetError(http(500)));
+  const filtered = describeKickFailure([{ route: '', err: reset }]);
+  assert.match(filtered.error, /فیلتر/);
+  assert.match(filtered.hint, /TUN/);
+  assert.ok(
+    !filtered.error.includes('ECONNRESET') && !filtered.hint.includes('ECONNRESET'),
+    'no raw error codes in the UI'
+  );
+  const viaVpn = describeKickFailure([
+    { route: 'http://127.0.0.1:10809', err: refused },
+    { route: '', err: reset }
+  ]);
+  assert.match(viaVpn.hint, /127\.0\.0\.1:10809/, 'says which proxy was tried');
+  const withCreds = describeKickFailure([
+    { route: 'http://user:secret@10.0.0.1:3128', err: refused },
+    { route: '', err: reset }
+  ]);
+  assert.ok(!withCreds.hint.includes('secret'), 'proxy credentials never shown');
+  assert.equal(
+    describeKickFailure([
+      { route: 'http://p:1', err: http(404) },
+      { route: '', err: reset }
+    ]).error,
+    'کانال پیدا نشد'
+  );
+  assert.match(
+    describeKickFailure([
+      { route: 'http://p:1', err: http(403) },
+      { route: '', err: reset }
+    ]).error,
+    /403/
+  );
+  assert.match(describeKickFailure([{ route: '', err: http(502) }]).error, /502/);
+});
 
 test('typeOf / parseThreshold', () => {
   assert.equal(typeOf('a.webm'), 'video');
@@ -211,6 +277,16 @@ test('upload streaming + sniffing, suffix Range, config.files merge, capture ret
   assert.equal((await req('POST', '/api/config', { body: { files: [] } })).status, 200);
   assert.equal(JSON.parse((await req('GET', '/api/config')).body).config.files.length, 1);
 
+  // card delay (1.3.1): per-file value rounded to 0.1 s and clamped; '' clears it; the appearance value is clamped to 60 s
+  const setDelay = async v =>
+    JSON.parse((await req('PATCH', '/api/file', { body: { id: entry.id, cardDelay: v } })).body).file.cardDelay;
+  assert.equal(await setDelay(1.54), 1.5);
+  assert.equal(await setDelay(''), null);
+  assert.equal(await setDelay(999), 60);
+  assert.equal(await setDelay(1.5), 1.5);
+  assert.equal((await req('POST', '/api/config', { body: { appearance: { cardDelay: 999 } } })).status, 200);
+  assert.equal(JSON.parse((await req('GET', '/api/config')).body).config.appearance.cardDelay, 60);
+
   // queue: with a Browser Source connected, a real tip whose capture fails transiently is retried and never marked as played (audit P0-2)
   const events = [];
   es = http.get({ host: '127.0.0.1', port, path: '/events?role=overlay' }, res => {
@@ -245,4 +321,22 @@ test('upload streaming + sniffing, suffix Range, config.files merge, capture ret
   assert.equal(srv.testHooks.isPlayed('pi_ok'), true, 'a captured tip is marked as played');
   const seen = events.join('');
   assert.ok(seen.includes('"type":"play"') && seen.includes('Donor'), 'the captured tip is played on the overlay');
+  assert.ok(seen.includes('"cardDelay":1.5'), 'the per-file card delay reaches the overlay');
+});
+
+test('in-app legal documents are identical to the repository copies', () => {
+  const root = path.join(__dirname, '..');
+  const pairs = [
+    ['PRIVACY.md', 'public/legal/PRIVACY.md'],
+    ['TERMS.md', 'public/legal/TERMS.md'],
+    ['THIRD_PARTY_NOTICES.md', 'public/legal/THIRD_PARTY_NOTICES.md'],
+    ['LICENSE', 'public/legal/LICENSE.txt'],
+    ['NOTICE', 'public/legal/NOTICE.txt']
+  ];
+  for (const [src, copy] of pairs)
+    assert.equal(
+      fs.readFileSync(path.join(root, copy), 'utf8'),
+      fs.readFileSync(path.join(root, src), 'utf8'),
+      copy + ' is out of date (copy ' + src + ' over it)'
+    );
 });

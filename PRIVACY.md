@@ -38,7 +38,7 @@ Electron (the runtime) keeps its own browser profile in `%APPDATA%\SahnePlus` (c
 | **bonbast.com** (fallback only, when baha24 fails) | same | a page request with a normal desktop browser identity | the current USD sell rate |
 | **Meld Studio** on your own computer (`127.0.0.1:13376`) | reload the Browser Source layer if it lost the connection | the layer URL | layer list |
 
-If you configure a proxy in Settings, the kick.com and bonbast.com requests go through it, and baha24.com is retried through it if the direct request fails. The KickBot connection does not use the proxy.
+If you configure a proxy in Settings, or Windows has a system proxy (for example a VPN app in "system proxy" mode), the kick.com and bonbast.com requests go through it — the manual proxy first, then the system proxy, then a direct connection — and baha24.com is retried through them if the direct request fails. Only plain HTTP proxies are used. The KickBot connection and Kick's chat feed do not use a proxy.
 
 These third parties process the data they receive under **their own** privacy policies. Sahne Plus cannot control what KickBot, Kick, Pusher, baha24 or Bonbast do with a request once it reaches them.
 

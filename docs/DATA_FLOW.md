@@ -61,7 +61,7 @@ The Browser Source therefore has access to: the overlay page, static assets, med
 | 3.8 | KickBot TTS audio (`audio_url` from the tip event; fallbacks `https://ttsaudio.kickbot.com/…`, `https://tts.kickbotcdn.com/…`) | HTTPS GET | from the **Browser Source**, per tip that has TTS | nothing but the URL | audio | `overlay.js playTts()` |
 | 3.9 | KickBot tip GIF (`gif_url` from the tip event) | HTTPS GET | from the Browser Source, when the tip carries one and no local video/image is used | nothing but the URL | image | `overlay.js addImg()` (https only) |
 | 3.10 | `ws://127.0.0.1:13376` (Meld Studio local API) | WebSocket, loopback | when no Browser Source has been connected for 20 s (at most every 2 min) or on demand | asks Meld to reload the Browser layer whose URL contains `localhost:7788/overlay` | layer list | `meldReloadLayers()` |
-| — | optional HTTP CONNECT proxy (`rate.proxy`, user-configured) | HTTP | only for 3.5 and 3.7 | the destinations above pass through it | — | `httpsRequest()` |
+| — | optional HTTP CONNECT proxy: `rate.proxy` (user-configured) and, since 1.3.1, the Windows system proxy (resolved by Electron, plain HTTP proxies only) | HTTP | 3.5 and 3.7 (proxies first, direct last); 3.7a only as a retry after a failed direct request | the destinations above pass through it | — | `httpsRequest()`, `routeOrder()` |
 
 Not present in the code: analytics, telemetry, crash reporting, advertising, auto-update, update checks, any Sahne Plus server, Google Fonts (removed in 1.1.0; all fonts are bundled), any contact with GitHub at runtime.
 

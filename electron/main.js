@@ -10,11 +10,12 @@ const {
   dialog,
   nativeImage,
   clipboard,
-  safeStorage
+  safeStorage,
+  session
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { createServer, typeOf } = require('../server/server');
+const { createServer, typeOf, parsePacProxy } = require('../server/server');
 
 const APP_NAME = 'Sahne Plus';
 const VERSION = app.getVersion();
@@ -356,7 +357,9 @@ app.whenReady().then(async () => {
     onLog: fileLog,
     openPath: p => shell.openPath(p),
     secretStore,
-    meldSelfHeal: !process.env.SAHNE_PLUS_DATA_DIR
+    meldSelfHeal: !process.env.SAHNE_PLUS_DATA_DIR,
+    // Node ignores the Windows system proxy (VPN apps in "system proxy" mode); Chromium resolves it, PAC included
+    systemProxy: async url => parsePacProxy(await session.defaultSession.resolveProxy(url))
   });
   if (server.config.app && server.config.app.autostart !== false && !autostartGet()) autostartSet(true);
   try {

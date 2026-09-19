@@ -2,6 +2,14 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
+## 1.3.1 — 2026-09-19
+
+- Kick subscriptions behind a filter: Sahne+ now uses the Windows system proxy automatically (for example v2rayN or another VPN app in "system proxy" mode) for kick.com and bonbast.com — after a manually entered proxy and before a direct connection. Only plain HTTP proxies are used; a SOCKS-only setup needs the VPN's TUN mode or a manual HTTP proxy. The detected proxy is shown under the proxy field in Settings.
+- Readable Kick errors: instead of raw codes such as `read ECONNRESET`, the Kick card says what happened (kick.com filtered, channel not found, request refused by Kick, …) and what to do. A "channel not found" answer is no longer hidden by a later network error.
+- Card delay: the name/amount card (and the KickBot TTS) can appear a few seconds after the alert media starts — a global setting on the Look page and an optional per-file value in the file editor. A delayed card always stays up for a few seconds.
+- The in-app copy of PRIVACY.md (About page) was out of date in 1.3.0; it is synced again and a test keeps the in-app legal documents identical to the repository copies.
+- Tests for proxy parsing, route order, the new Kick messages and the card delay.
+
 ## 1.3.0 — 2026-09-19 (open source)
 
 - Sahne+ is now open source under the Apache License 2.0 (names and icons excluded, see BRANDING.md). Source: https://github.com/AmirEyZed/sahne-plus

@@ -110,6 +110,7 @@ const sandbox = {
     constructor(u) {
       this.src = u;
       this.listeners = {};
+      (sandbox.__audios = sandbox.__audios || []).push(String(u));
     }
     addEventListener(t, f) {
       (this.listeners[t] = this.listeners[t] || []).push(f);
@@ -245,4 +246,58 @@ assert.deepStrictEqual(
 );
 console.log('OK: local image alerts render; foreign image hosts refused');
 
-process.exit(0);
+// Card delay (1.3.1): the per-file value wins over the appearance setting; the card and the TTS appear only after it.
+(async () => {
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const lastCard = () => stage.children[stage.children.length - 1].querySelector('.card');
+  es.onmessage({
+    data: JSON.stringify({ type: 'config', appearance: { ...appearance, cardDelay: 5, animation: 'none' } })
+  });
+  sandbox.__audios = [];
+  const base = { ...tip, name: 'Donor', message: 'hi', gif_url: null };
+  es.onmessage({
+    data: JSON.stringify({
+      type: 'play',
+      tip: {
+        ...base,
+        id: 'd1',
+        tts_url: 'https://tts.example/a.mp3',
+        media: { url: '/media/a.png', type: 'image', duration: 5, cardDelay: 0.3 }
+      }
+    })
+  });
+  const c1 = lastCard();
+  assert.strictEqual(c1.style.visibility, 'hidden', 'card hidden during the delay');
+  assert.ok(!sandbox.__audios.some(u => u.includes('tts.example')), 'TTS waits for the card');
+  await sleep(450);
+  assert.strictEqual(c1.style.visibility, '', 'card shown after the per-file delay (0.3 s, not the global 5 s)');
+  assert.ok(
+    sandbox.__audios.some(u => u.includes('tts.example')),
+    'TTS starts with the card'
+  );
+  es.onmessage({
+    data: JSON.stringify({ type: 'config', appearance: { ...appearance, cardDelay: 0, animation: 'none' } })
+  });
+  es.onmessage({
+    data: JSON.stringify({
+      type: 'play',
+      tip: { ...base, id: 'd2', tts_url: null, media: { url: '/media/a.png', type: 'image' } }
+    })
+  });
+  assert.notStrictEqual(lastCard().style.visibility, 'hidden', 'no delay: the card shows at once');
+  es.onmessage({
+    data: JSON.stringify({ type: 'config', appearance: { ...appearance, cardDelay: 0.2, animation: 'none' } })
+  });
+  es.onmessage({
+    data: JSON.stringify({
+      type: 'play',
+      tip: { ...base, id: 'd3', tts_url: null, media: { url: '/media/a.png', type: 'image' } }
+    })
+  });
+  assert.strictEqual(lastCard().style.visibility, 'hidden', 'no per-file value: the appearance delay applies');
+  console.log('OK: card delay (per file over appearance), TTS waits for the card');
+  process.exit(0);
+})().catch(e => {
+  console.error(e);
+  process.exit(1);
+});

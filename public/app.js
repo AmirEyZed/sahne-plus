@@ -170,6 +170,11 @@ function renderKickStatus() {
   h.textContent = txt;
   h.className = cls;
   pill.className = pcls;
+  // what to do about the error (filtered kick.com, VPN, wrong channel name)
+  const hint = $('#kHint');
+  const showHint = !!(st.hint && CFG.kick && CFG.kick.enabled !== false && CFG.kick.channel && !st.connected);
+  hint.hidden = !showHint;
+  hint.textContent = showHint ? st.hint : '';
 }
 $('#btnSaveKick').onclick = async () => {
   await post('/api/config', {
@@ -482,6 +487,7 @@ function selectFile(id) {
   $('#iKw').value = (f.keywords || []).join(', ');
   $('#iVol').value = f.volume ?? 100;
   $('#iDur').value = f.duration ?? '';
+  $('#iCardDelay').value = f.cardDelay ?? '';
   $('#iMinChip').textContent = fmtToman(f.minToman);
   $('#inspector').hidden = false;
   $('#shell').classList.add('has-inspector');
@@ -511,10 +517,11 @@ function collectInspector() {
       .map(s => s.trim())
       .filter(Boolean),
     volume: Math.max(0, Math.min(100, Number($('#iVol').value) || 0)),
-    duration: num($('#iDur').value)
+    duration: num($('#iDur').value),
+    cardDelay: num($('#iCardDelay').value)
   };
 }
-['#iName', '#iEnabled', '#iMin', '#iMax', '#iKw', '#iVol', '#iDur'].forEach(sel =>
+['#iName', '#iEnabled', '#iMin', '#iMax', '#iKw', '#iVol', '#iDur', '#iCardDelay'].forEach(sel =>
   $(sel).addEventListener('input', () => {
     if (!selectedId) return;
     $('#iMinChip').textContent = fmtToman($('#iMin').value);
@@ -576,6 +583,7 @@ const LOOK_DEFAULTS = {
   cardX: 50,
   cardY: 82,
   cardScale: 1,
+  cardDelay: 0,
   radius: 26,
   amountStyle: 'pill',
   showLine: true,
@@ -837,6 +845,11 @@ function renderState() {
       : s.rateError
         ? 'دریافت نرخ ناموفق'
         : 'هنوز دریافت نشده';
+  $('#sysProxy').textContent = s.systemProxy
+    ? 'پراکسی سیستم ویندوز: ' +
+      s.systemProxy +
+      ' — اگر کادر بالا خالی باشد، برای kick.com و بن‌بست خودکار از همین استفاده می‌شود.'
+    : 'پراکسی سیستم ویندوز پیدا نشد. اگر VPN در حالت TUN است یا kick.com بدون VPN باز می‌شود، نیازی به پراکسی نیست.';
   const rc = $('#recent');
   rc.innerHTML = s.recent.length ? '' : '<span class="hint">هنوز چیزی نیست</span>';
   s.recent.forEach(t => {

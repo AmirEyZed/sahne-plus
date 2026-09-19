@@ -38,7 +38,7 @@ Electron (the runtime) keeps its own browser profile in `%APPDATA%\SahnePlus` (c
 | **bonbast.com** (fallback only, when baha24 fails) | same | a page request with a normal desktop browser identity | the current USD sell rate |
 | **Meld Studio** on your own computer (`127.0.0.1:13376`) | reload the Browser Source layer if it lost the connection | the layer URL | layer list |
 
-If you configure a proxy in Settings, the kick.com and bonbast.com requests go through it, and baha24.com is retried through it if the direct request fails. The KickBot connection does not use the proxy.
+If you configure a proxy in Settings, or Windows has a system proxy (for example a VPN app in "system proxy" mode), the kick.com and bonbast.com requests go through it — the manual proxy first, then the system proxy, then a direct connection — and baha24.com is retried through them if the direct request fails. Only plain HTTP proxies are used. The KickBot connection and Kick's chat feed do not use a proxy.
 
 These third parties process the data they receive under **their own** privacy policies. Sahne Plus cannot control what KickBot, Kick, Pusher, baha24 or Bonbast do with a request once it reaches them.
 
@@ -61,7 +61,7 @@ Donation and subscription events contain the names and messages of your viewers.
 - **In the app:** Settings → "Clear application data" deletes `config.json`, `played.json` and everything in `media\` (after a confirmation), then restarts the app. Settings → "Disconnect KickBot" removes only the widget key. "Reset settings" restores defaults without touching media.
 - **Manually:** delete the folder `Documents\Sahne Plus`.
 - **Uninstalling** the application removes the program files and Electron's profile folder (`%APPDATA%\SahnePlus`) but **does not** delete `Documents\Sahne Plus`, so your media survives a reinstall.
-- **Autostart:** uninstalling removes the program, but the "run at Windows login" registry entry (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run\SahnePlus`) may remain and simply points to a missing file; turn the option off in Settings before uninstalling to keep the registry clean.
+- **Autostart:** the uninstaller also removes the "run at Windows login" registry entry (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run\SahnePlus`), so nothing of the program is left in the registry.
 
 ## 8. Security of the local server
 

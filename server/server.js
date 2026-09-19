@@ -72,6 +72,7 @@ const DEFAULT_CONFIG = {
     imageDuration: 8,
     minDuration: 6,
     maxDuration: 90,
+    cardDelay: 0,
     mediaMaxHeight: 55,
     volume: 80,
     ttsVolume: 70,
@@ -227,6 +228,100 @@ function httpsUrl(u) {
     return null;
   }
 }
+// ---------- network helpers (pure, unit-tested) ----------
+// Failures of the kind a filtered site produces in Iran: reset / refused / timeout / DNS / TLS handshake cut.
+const NET_CODES = new Set([
+  'ECONNRESET',
+  'ECONNREFUSED',
+  'ETIMEDOUT',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+  'ECONNABORTED',
+  'EPIPE'
+]);
+function isNetError(e) {
+  if (!e) return false;
+  if (e.code && NET_CODES.has(String(e.code))) return true;
+  if (/^(ERR_TLS|ERR_SSL|CERT_|UNABLE_TO|DEPTH_ZERO|SELF_SIGNED)/.test(String(e.code || ''))) return true;
+  return /^timeout$|proxy connect timeout|socket hang up|before secure TLS connection/i.test(String(e.message || ''));
+}
+// Chromium / Windows proxy answer ("PROXY 127.0.0.1:10809; DIRECT") -> "http://127.0.0.1:10809", otherwise ''.
+// httpsRequest() speaks HTTP CONNECT only, so SOCKS and HTTPS proxies are ignored.
+function parsePacProxy(s) {
+  for (const part of String(s || '').split(';')) {
+    const m = /^\s*PROXY\s+([A-Za-z0-9.-]+|\[[0-9A-Fa-f:.]+\]):(\d{1,5})\s*$/i.exec(part);
+    if (m && Number(m[2]) > 0 && Number(m[2]) < 65536) return 'http://' + m[1] + ':' + m[2];
+  }
+  return '';
+}
+// Ordered, de-duplicated routes to try; '' means a direct connection.
+function routeOrder({ manual = '', system = '', directFirst = false } = {}) {
+  const proxies = [manual, system].map(s => String(s || '').trim()).filter(s => /^https?:\/\/\S+$/.test(s));
+  const list = directFirst ? ['', ...proxies] : [...proxies, ''];
+  return list.filter((v, i) => list.indexOf(v) === i);
+}
+// host:port of a proxy URL without credentials, for logs and messages
+function routeLabel(px) {
+  if (!px) return 'direct';
+  try {
+    return new URL(px).host || 'proxy';
+  } catch {
+    return 'proxy';
+  }
+}
+// attempts: [{ route, err }] from resolveKickChannel() -> { error: short text for the status chip, hint: what to do }
+function describeKickFailure(attempts) {
+  const list = Array.isArray(attempts) ? attempts.filter(a => a && a.err) : [];
+  const status = a => Number(a.err.httpStatus) || 0;
+  if (list.some(a => status(a) === 404))
+    return {
+      error: 'کانال پیدا نشد',
+      hint: 'اسم کانال را درست وارد کنید: فقط قسمتی که بعد از kick.com/ می‌آید، مثلاً amireyzed.'
+    };
+  const refused = list.find(a => status(a) === 403 || status(a) === 429);
+  if (refused)
+    return {
+      error: 'kick.com درخواست را رد کرد (' + status(refused) + ')',
+      hint: 'کیک اتصال از این IP را قبول نکرد؛ معمولاً IP سرور VPN است. سرور یا لوکیشن VPN را عوض کنید و دوباره «ذخیره» را بزنید.'
+    };
+  const direct = list.find(a => !a.route);
+  const viaProxy = list.filter(a => a.route);
+  if (
+    direct &&
+    isNetError(direct.err) &&
+    viaProxy.every(a => isNetError(a.err) || /^proxy CONNECT/.test(String(a.err.message)))
+  ) {
+    const first = viaProxy.length
+      ? 'از طریق پراکسی (' +
+        viaProxy.map(a => routeLabel(a.route)).join('، ') +
+        ') هم وصل نشد؛ مطمئن شوید VPN روشن و وصل است. '
+      : 'kick.com در ایران فیلتر است و برنامه نتوانست به آن وصل شود. VPN را روشن کنید. ';
+    return {
+      error: 'kick.com در دسترس نیست (فیلتر)',
+      hint:
+        first +
+        'اگر VPN روشن است و باز هم این خطا می‌آید، حالت TUN را در برنامه‌ی VPN روشن کنید، یا آدرس پراکسی HTTP آن را در کادر «پراکسی» (بخش نرخ دلار) بنویسید، مثلاً http://127.0.0.1:10809 برای v2rayN. این فقط برای شناسایی کانال لازم است؛ بعد از آن ساب‌ها معمولاً بدون VPN هم می‌آیند.'
+    };
+  }
+  const last = list[list.length - 1];
+  if (last && status(last))
+    return {
+      error: 'kick.com خطای HTTP ' + status(last) + ' داد',
+      hint: 'ممکن است سرور کیک موقتاً مشکل داشته باشد؛ چند دقیقه بعد دوباره «ذخیره» را بزنید.'
+    };
+  if (last && last.err.kind === 'parse')
+    return {
+      error: 'جواب kick.com قابل خواندن نبود',
+      hint: 'احتمالاً کیک صفحه‌ی بررسی امنیتی (Cloudflare) برگردانده است؛ سرور VPN را عوض کنید یا چند دقیقه بعد دوباره امتحان کنید.'
+    };
+  return {
+    error: 'اتصال به kick.com ناموفق بود',
+    hint: 'اینترنت و VPN را بررسی کنید و دوباره «ذخیره» را بزنید؛ جزئیات در صفحه‌ی لاگ است.'
+  };
+}
+
 const finite = (v, min, max, dflt) => {
   const n = Number(v);
   if (!Number.isFinite(n)) return dflt;
@@ -368,6 +463,11 @@ function createServer(opts) {
       keywords: kw,
       volume: finite(f.volume, 0, 100, 100),
       duration: intOrNull(f.duration, 1, 3600),
+      // seconds before the name/amount card (and TTS) appears for this file; null = use the appearance setting
+      cardDelay:
+        f.cardDelay === null || f.cardDelay === undefined || f.cardDelay === ''
+          ? null
+          : Math.round(finite(f.cardDelay, 0, 60, 0) * 10) / 10,
       size: finite(f.size, 0, 1e13, 0)
     };
   }
@@ -405,6 +505,8 @@ function createServer(opts) {
     num('imageDuration', 1, 600);
     num('minDuration', 1, 600);
     num('maxDuration', 2, 3600);
+    num('cardDelay', 0, 60);
+    out.cardDelay = Math.round((Number(out.cardDelay) || 0) * 10) / 10;
     num('volume', 0, 100);
     num('ttsVolume', 0, 100);
     ['nameColor', 'textColor', 'accent', 'bgColor', 'headlineColor', 'borderColor'].forEach(col);
@@ -492,13 +594,15 @@ function createServer(opts) {
         status: kickStatus(),
         channel: config.kick.channel,
         chatroomId: config.kick.chatroomId,
-        error: kickState.error
+        error: kickState.error,
+        hint: kickState.hint
       },
       rate: currentRate(),
       rateUpdatedAt: config.rate.updatedAt,
       rateManual: Number(config.rate.manual) > 0,
       rateError: rateError,
       rateSource: config.rate.source,
+      systemProxy: systemProxyLabel,
       recent,
       port: config.port,
       version: APP_VERSION
@@ -817,11 +921,33 @@ function createServer(opts) {
     });
   }
 
+  // ---------- Windows system proxy (a VPN app in "system proxy" mode). Node ignores it, so the Electron shell resolves
+  // it (opts.systemProxy, Chromium's resolver incl. PAC) and it is tried after a manual proxy. ----------
+  let systemProxyLabel = null;
+  async function systemProxyFor(url) {
+    if (typeof opts.systemProxy !== 'function') return '';
+    let p = '';
+    try {
+      p = String((await opts.systemProxy(url)) || '');
+    } catch {
+      p = '';
+    }
+    if (!/^https?:\/\/\S+$/.test(p)) p = '';
+    const label = p ? routeLabel(p) : null;
+    if (label !== systemProxyLabel) {
+      systemProxyLabel = label;
+      if (label) log('info', 'پراکسی سیستم ویندوز پیدا شد', { proxy: label });
+      sendState();
+    }
+    return p;
+  }
+  const routesFor = async (url, directFirst) =>
+    routeOrder({ manual: config.rate.proxy, system: await systemProxyFor(url), directFirst });
+
   // ---------- USD -> Toman rate: baha24 public JSON API first, bonbast.com (scraped) as fallback. Never silently trusted. ----------
   let rateError = null,
     lastBonbastAttempt = 0;
   async function fetchBaha24() {
-    const proxy = (config.rate.proxy || '').trim();
     const attempt = async px => {
       const r = await httpsRequest(
         BAHA24,
@@ -843,7 +969,7 @@ function createServer(opts) {
         throw new Error('baha24 sell out of range: ' + String(usd.sell).slice(0, 20));
       return Math.round(v);
     };
-    const order = ['', ...(proxy ? [proxy] : [])]; // direct first (not filtered), proxy as retry
+    const order = await routesFor(BAHA24, true); // direct first (not filtered); manual proxy, then the system proxy as retries
     let lastErr;
     for (const px of order) {
       try {
@@ -855,7 +981,6 @@ function createServer(opts) {
     throw lastErr;
   }
   async function fetchBonbast() {
-    const proxy = (config.rate.proxy || '').trim();
     const attempt = async px => {
       const page = await httpsRequest(BONBAST, {
         headers: { 'User-Agent': UA, 'Accept-Language': 'en-US,en;q=0.9' },
@@ -893,7 +1018,7 @@ function createServer(opts) {
         throw new Error('bonbast usd1 out of range: ' + String(j.usd1).slice(0, 20));
       return Math.round(v);
     };
-    const order = proxy ? [proxy, ''] : [''];
+    const order = await routesFor(BONBAST, false); // bonbast is filtered in Iran: proxies first, direct last
     let lastErr;
     for (const px of order) {
       try {
@@ -979,6 +1104,7 @@ function createServer(opts) {
       keywords: [],
       volume: 100,
       duration: null,
+      cardDelay: null,
       size
     };
   }
@@ -1142,7 +1268,7 @@ function createServer(opts) {
   let kws = null,
     kickPing = null,
     kickRetry = 5000;
-  const kickState = { connected: false, error: null };
+  const kickState = { connected: false, error: null, hint: null };
   const recentKeys = new Map();
   function seenRecently(key, ms = 2500) {
     const now = Date.now();
@@ -1161,40 +1287,66 @@ function createServer(opts) {
     if (!/^[a-z0-9_.-]{1,40}$/.test(slug)) {
       if (slug) {
         kickState.error = 'اسم کانال نامعتبر است';
+        kickState.hint = 'فقط اسم کانال را بنویسید (حروف انگلیسی، عدد، _ . -)، مثلاً amireyzed.';
         sendState();
       }
       return false;
     }
     if (config.kick.chatroomId && config.kick.resolvedFor === slug) return true;
-    const proxy = (config.rate.proxy || '').trim();
-    const order = proxy ? [proxy, ''] : [''];
-    let last = null;
-    for (const px of order) {
+    const attempts = [];
+    for (const px of await routesFor(KICK_CHANNEL_API, false)) {
       try {
         const r = await httpsRequest(KICK_CHANNEL_API + encodeURIComponent(slug), {
           headers: { 'User-Agent': UA, Accept: 'application/json' },
           proxy: px
         });
-        if (r.status === 404) throw new Error('کانالی با این اسم پیدا نشد؛ فقط قسمت بعد از kick.com/ را وارد کنید');
-        if (r.status !== 200) throw new Error('kick api HTTP ' + r.status);
-        const j = JSON.parse(r.text);
+        if (r.status !== 200) {
+          const e = new Error('kick api HTTP ' + r.status);
+          e.httpStatus = r.status;
+          throw e;
+        }
+        let j;
+        try {
+          j = JSON.parse(r.text);
+        } catch {
+          const e = new Error('kick api: response is not JSON');
+          e.kind = 'parse';
+          throw e;
+        }
         const chatroomId = Number(j && j.chatroom && j.chatroom.id),
           channelId = Number(j && j.id);
-        if (!chatroomId) throw new Error('chatroom not in response');
+        if (!chatroomId) {
+          const e = new Error('kick api: chatroom not in response');
+          e.kind = 'parse';
+          throw e;
+        }
         config.kick.channel = slug;
         config.kick.chatroomId = chatroomId;
         config.kick.channelId = channelId || null;
         config.kick.resolvedFor = slug;
         saveConfig();
         kickState.error = null;
-        log('info', 'کانال کیک شناسایی شد', { channel: slug, chatroom: chatroomId });
+        kickState.hint = null;
+        log('info', 'کانال کیک شناسایی شد', { channel: slug, chatroom: chatroomId, via: routeLabel(px) });
         return true;
       } catch (e) {
-        last = e;
+        attempts.push({ route: px, err: e });
+        if (e.httpStatus === 404) break; // definitive: no such channel, other routes would say the same
       }
     }
-    kickState.error = (last && last.message) || 'unknown';
-    log('warn', 'شناسایی کانال کیک ناموفق بود (اسم کانال یا دسترسی به kick.com را بررسی کن)', kickState.error);
+    const d = describeKickFailure(attempts);
+    kickState.error = d.error;
+    kickState.hint = d.hint;
+    log(
+      'warn',
+      'شناسایی کانال کیک ناموفق بود: ' + d.error,
+      attempts
+        .map(
+          a =>
+            routeLabel(a.route) + ': ' + (a.err.httpStatus ? 'HTTP ' + a.err.httpStatus : a.err.code || a.err.message)
+        )
+        .join(' | ')
+    );
     sendState();
     return false;
   }
@@ -1222,6 +1374,7 @@ function createServer(opts) {
           sock.send(JSON.stringify({ event: 'pusher:subscribe', data: { auth: '', channel: ch } }));
         kickState.connected = true;
         kickState.error = null;
+        kickState.hint = null;
         kickRetry = 5000;
         log('info', 'به چت کیک وصل شد (ساب / ساب‌گیفت)', { channel: config.kick.channel });
         clearInterval(kickPing);
@@ -1475,6 +1628,7 @@ function createServer(opts) {
             type: media.type,
             volume: media.volume ?? 100,
             duration: media.duration || null,
+            cardDelay: media.cardDelay ?? null,
             name: media.name
           }
         : null
@@ -2183,4 +2337,17 @@ function createServer(opts) {
   };
 }
 
-module.exports = { createServer, DEFAULT_CONFIG, typeOf, parseThreshold, safeMediaName, sniffOk, cleanText, normFa };
+module.exports = {
+  createServer,
+  DEFAULT_CONFIG,
+  typeOf,
+  parseThreshold,
+  safeMediaName,
+  sniffOk,
+  cleanText,
+  normFa,
+  isNetError,
+  parsePacProxy,
+  routeOrder,
+  describeKickFailure
+};

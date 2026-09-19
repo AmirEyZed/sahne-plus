@@ -210,6 +210,7 @@
               <div class="field"><label>انیمیشن</label><select data-a="animation"><option value="pop">پاپ</option><option value="slide">اسلاید</option><option value="fade">فید</option><option value="none">بدون انیمیشن</option></select></div>
               <div class="field"><label>حداقل مدت نمایش (ثانیه)</label><input type="number" min="2" max="120" data-a="minDuration" class="ltr"></div>
               <div class="field"><label>حداکثر مدت (ثانیه)</label><input type="number" min="5" max="600" data-a="maxDuration" class="ltr"></div>
+              <div class="field"><label>تاخیر نمایش کارت اسم و مبلغ (ثانیه) — ۰ = همزمان با فایل</label><input type="number" min="0" max="60" step="0.5" data-a="cardDelay" class="ltr"></div>
               <div class="field"><label>صدای فایل‌ها: <span id="lblVol"></span>%</label><input type="range" min="0" max="100" data-a="volume"></div>
               <div class="field"><label>صدای TTS کیک‌بات: <span id="lblTts"></span>%</label><input type="range" min="0" max="100" data-a="ttsVolume"></div>
             </div>
@@ -266,6 +267,7 @@
             <div class="field"><label>ارزش ساب جدید (تومان) — ۰ = خودکار</label><input type="number" id="kSub" min="0" step="10000" class="ltr"></div>
             <div class="field"><div class="switch-row"><label class="lbl" style="margin:0">فعال</label><label class="switch"><input type="checkbox" id="kEnabled"><span></span></label></div><div class="switch-row"><label class="lbl" style="margin:0">نمایش ساب‌های جدید</label><label class="switch"><input type="checkbox" id="kShowSubs"><span></span></label></div></div>
           </div>
+          <p class="hint kick-hint" id="kHint" hidden></p>
           <p class="hint">برای فایل مخصوص ساب، کلمه‌ی کلیدی <code>sub</code> یا <code>giftsub</code> رو در ویرایش فایل بذار.</p>
           <div class="row" style="margin-top:8px"><button class="btn primary" id="btnSaveKick">ذخیره</button></div>
         </div>
@@ -274,7 +276,7 @@
           <div class="grid">
             <div class="field"><label>هر چند دقیقه یک بار</label><input type="number" id="rateInt" min="1" max="1440" class="ltr"></div>
             <div class="field"><label>نرخ دستی (تومان) — خالی = خودکار</label><input type="number" id="rateManual" min="0" step="100" class="ltr" placeholder="1150000"></div>
-            <div class="field full"><label>پراکسی برای kick.com و منابع نرخ (اگر فیلتره) — خالی = مستقیم</label><input type="text" id="rateProxy" class="ltr" placeholder="http://127.0.0.1:10809"></div>
+            <div class="field full"><label>پراکسی دستی برای kick.com و منابع نرخ — خالی = پراکسی سیستم ویندوز یا مستقیم</label><input type="text" id="rateProxy" class="ltr" placeholder="http://127.0.0.1:10809"><p class="hint" id="sysProxy" style="margin-top:6px"></p></div>
             <div class="field"><div class="switch-row"><label class="lbl" style="margin:0">دریافت خودکار</label><label class="switch"><input type="checkbox" id="rateAuto"><span></span></label></div></div>
           </div>
           <div class="row" style="margin-top:12px"><button class="btn primary" id="btnSaveRate">ذخیره</button><button class="btn" id="btnRate"><svg><use href="#i-refresh"/></svg>به‌روزرسانی الان</button><span class="hint" id="rateMeta" style="margin:0"></span></div>
@@ -342,6 +344,7 @@
         <div class="field"><label>صدا %</label><input type="number" id="iVol" min="0" max="100" class="ltr"></div>
         <div class="field"><label>قطع بعد از (ثانیه)</label><input type="number" id="iDur" min="1" class="ltr" placeholder="کامل"></div>
       </div>
+      <div class="field"><label>تاخیر کارت اسم و مبلغ (ثانیه) — خالی = طبق «ظاهر الرت»</label><input type="number" id="iCardDelay" min="0" max="60" step="0.5" class="ltr" placeholder="پیش&zwnj;فرض"></div>
     </div>
     <div class="foot"><button class="btn" id="iPreview"><svg><use href="#i-play"/></svg>پیش‌نمایش</button><button class="btn danger" id="iDelete"><svg><use href="#i-trash"/></svg>حذف</button></div>
   </aside>
