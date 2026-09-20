@@ -41,6 +41,8 @@ Please include:
 
 - [B3hnamR](https://github.com/B3hnamR) — independent review of 1.2.0 ([SahnePlusReview](https://github.com/B3hnamR/SahnePlusReview)) and a code audit of the 1.3.0 source that found the image-alert and capture-retry bugs fixed in 1.3.0.
 
+- [KernelDotDLL](https://github.com/KernelDotDLL) — reported (with reproductions) that any web page could open the Browser Source event stream and consume alerts, and that the media route served every file in the media folder; both fixed in 1.3.2.
+
 ## Scope
 
 In scope:

@@ -2,8 +2,10 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
-## Unreleased
+## 1.3.2 — 2026-09-20
 
+- Security (reported by [KernelDotDLL](https://github.com/KernelDotDLL), thank you): a page on another website that the streamer had open could connect to the alert event stream. It could not read anything, but the connection alone counted as a Browser Source, so an alert could be consumed while OBS was closed, and the number of connections was unbounded. The event stream now refuses requests from another site and caps the number of connections per role.
+- Security (same report): `/media/…` served every file in the media folder, including notes or a partial upload. Only files registered as alerts are served now.
 - Fixed: in the file editor the header icon was oversized and the preview collapsed to a thin strip when the window was short (present since 1.0, more visible since 1.3.1 added a field). The panel now scrolls instead of squashing its parts.
 
 ## 1.3.1 — 2026-09-19

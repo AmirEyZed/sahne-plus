@@ -28,6 +28,7 @@ const LIMITS = {
   fileName: 120,
   upload: 512 * 1024 * 1024,
   files: 500,
+  sse: { overlay: 8, preview: 4, admin: 4 }, // concurrent event streams per role
   played: 1000,
   logs: 300,
   minRateInterval: 1,
@@ -1812,12 +1813,33 @@ function createServer(opts) {
       if (p === '/overlay') return serveFile(req, res, path.join(PUB, 'overlay.html'), CSP_OVERLAY);
       if (STATIC.test(p) || p.startsWith('/fonts/') || p.startsWith('/brand/') || p.startsWith('/legal/'))
         return servePublic(req, res, decodeURIComponent(url.pathname.slice(1)));
-      if (p.startsWith('/media/'))
-        return serveFile(req, res, path.join(MEDIA, path.basename(decodeURIComponent(url.pathname.slice(7)))));
+      if (p.startsWith('/media/')) {
+        // only files that are registered alerts: never other content of the media folder (notes, partial uploads)
+        const name = path.basename(decodeURIComponent(url.pathname.slice(7)));
+        const entry =
+          config.files.find(f => f.file === name) ||
+          config.files.find(f => f.file.toLowerCase() === name.toLowerCase());
+        if (!entry) return json(res, 404, { error: 'not found' });
+        return serveFile(req, res, path.join(MEDIA, entry.file));
+      }
       // ---- events: the Browser Source only ever receives {config(appearance), play, stop} ----
       if (p === '/events') {
         const role = url.searchParams.get('role') || 'overlay';
         if (!clients[role]) return json(res, 400, { error: 'bad role' });
+        // A page on another site can open an EventSource to this server; the browser cannot read the answer, but the
+        // connection alone would count as a Browser Source and consume alerts. Browsers send Origin (and Sec-Fetch-Site)
+        // on such a request, while our own pages, OBS and Meld are same-origin.
+        if (!originAllowed(req) || String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
+          log('warn', 'اتصال اورلی از یک صفحه‌ی خارجی رد شد', {
+            origin: String(req.headers.origin || '').slice(0, 100),
+            role
+          });
+          return json(res, 403, { error: 'forbidden origin' });
+        }
+        if (clients[role].size >= (LIMITS.sse[role] || 4)) {
+          log('warn', 'تعداد اتصال‌های هم‌زمان به صف رویدادها پر است', { role, open: clients[role].size });
+          return json(res, 429, { error: 'too many connections' });
+        }
         res.writeHead(200, {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',

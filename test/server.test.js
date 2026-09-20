@@ -332,6 +332,118 @@ test('upload streaming + sniffing, suffix Range, config.files merge, capture ret
   assert.ok(seen.includes('"cardDelay":1.5'), 'the per-file card delay reaches the overlay');
 });
 
+test('event streams: foreign pages are refused and the number of streams is bounded (1.3.2)', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sahne-test-'));
+  const port = 8000 + Math.floor(Math.random() * 100);
+  fs.writeFileSync(
+    path.join(dir, 'config.json'),
+    JSON.stringify({ port, rate: { auto: false }, kick: { enabled: false }, app: { autostart: false } })
+  );
+  const srv = createServer({
+    dataDir: dir,
+    publicDir: path.join(__dirname, '..', 'public'),
+    appVersion: 'test',
+    testHooks: { offline: true }
+  });
+  await srv.start();
+  const open = [];
+  t.after(async () => {
+    for (const r of open) r.destroy();
+    await srv.stop();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  const stream = (p, headers = {}) =>
+    new Promise((resolve, reject) => {
+      const r = http.get({ host: '127.0.0.1', port, path: p, headers }, res => {
+        res.resume();
+        resolve({ status: res.statusCode, res });
+      });
+      open.push(r);
+      r.on('error', reject);
+    });
+
+  // our own pages are same-origin: browsers send no Origin, or the server's own
+  assert.equal((await stream('/events?role=overlay')).status, 200);
+  assert.equal((await stream('/events?role=preview', { Origin: `http://localhost:${port}` })).status, 200);
+  // a page on another site: the connection alone must not count as a Browser Source
+  assert.equal((await stream('/events?role=overlay', { Origin: 'https://evil.example' })).status, 403);
+  assert.equal(
+    (await stream('/events?role=overlay', { 'Sec-Fetch-Site': 'cross-site' })).status,
+    403,
+    'cross-site fetch metadata is refused even without an Origin header'
+  );
+  assert.equal((await stream('/events?role=admin', { Origin: 'https://evil.example' })).status, 403);
+  // bounded number of streams per role (one overlay stream is already open)
+  const codes = [];
+  for (let i = 0; i < 10; i++) codes.push((await stream('/events?role=overlay')).status);
+  assert.ok(codes.includes(429), 'a flood of streams is refused once the cap is reached, got ' + JSON.stringify(codes));
+  assert.equal(codes.filter(c => c === 200).length, 7, 'the cap is 8 overlay streams in total');
+});
+
+test('media: only registered alert files are served (1.3.2)', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sahne-test-'));
+  const port = 8100 + Math.floor(Math.random() * 100);
+  fs.writeFileSync(
+    path.join(dir, 'config.json'),
+    JSON.stringify({ port, rate: { auto: false }, kick: { enabled: false }, app: { autostart: false } })
+  );
+  const srv = createServer({
+    dataDir: dir,
+    publicDir: path.join(__dirname, '..', 'public'),
+    appVersion: 'test',
+    testHooks: { offline: true }
+  });
+  await srv.start();
+  t.after(async () => {
+    await srv.stop();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  const get = p =>
+    new Promise((resolve, reject) => {
+      http
+        .get({ host: '127.0.0.1', port, path: p }, res => {
+          const chunks = [];
+          res.on('data', c => chunks.push(c));
+          res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks) }));
+        })
+        .on('error', reject);
+    });
+  const webm = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.from('alert bytes')]);
+  const up = await new Promise((resolve, reject) => {
+    const r = http.request(
+      {
+        host: '127.0.0.1',
+        port,
+        path: '/api/upload?name=' + encodeURIComponent('100T clip.webm'),
+        method: 'PUT',
+        headers: { Origin: `http://127.0.0.1:${port}`, 'Content-Type': 'application/octet-stream' }
+      },
+      res => {
+        let d = '';
+        res.on('data', c => (d += c));
+        res.on('end', () => resolve({ status: res.statusCode, body: d }));
+      }
+    );
+    r.on('error', reject);
+    r.end(webm);
+  });
+  assert.equal(up.status, 200, up.body);
+  const entry = JSON.parse(up.body).entry;
+  const registered = await get('/media/' + encodeURIComponent(entry.file));
+  assert.equal(registered.status, 200);
+  assert.deepEqual([...registered.body], [...webm]);
+  // other content of the media folder is not served
+  fs.writeFileSync(path.join(dir, 'media', 'notes.txt'), 'private notes');
+  fs.writeFileSync(path.join(dir, 'media', '.upload-abc123.tmp'), 'partial upload');
+  assert.equal((await get('/media/notes.txt')).status, 404, 'unregistered file');
+  assert.equal((await get('/media/.upload-abc123.tmp')).status, 404, 'partial upload');
+  assert.equal(
+    (await get('/media/' + encodeURIComponent(entry.file.toUpperCase()))).status,
+    200,
+    'case-insensitive on Windows'
+  );
+});
+
 test('in-app legal documents are identical to the repository copies', () => {
   const root = path.join(__dirname, '..');
   const pairs = [

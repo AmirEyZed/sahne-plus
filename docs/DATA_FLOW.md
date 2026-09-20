@@ -28,8 +28,8 @@ Endpoints (all under `http://127.0.0.1:7788`):
 | `/` | GET | controller window | app page |
 | `/overlay` | GET | Browser Source | overlay page |
 | `/app.css /app.js /overlay.css /overlay.js /fonts/* /brand/* /legal/*` | GET | both | static, path-traversal guarded (`servePublic`) |
-| `/media/<basename>` | GET | Browser Source, controller thumbnails | alert media; only the basename is used |
-| `/events?role=overlay` | GET (SSE) | Browser Source | receives **only** `{type:'config', appearance}`, `{type:'play', tip}`, `{type:'stop'}` |
+| `/media/<basename>` | GET | Browser Source, controller thumbnails | alert media; only the basename is used, and only files registered in `config.files` are served (since 1.3.2) |
+| `/events?role=overlay` | GET (SSE) | Browser Source | receives **only** `{type:'config', appearance}`, `{type:'play', tip}`, `{type:'stop'}`; since 1.3.2 a request with a foreign `Origin` or `Sec-Fetch-Site: cross-site` is refused and the number of streams per role is capped (overlay 8, preview 4, admin 4) |
 | `/events?role=preview` | GET (SSE) | controller preview iframe | same as overlay, but preview plays only |
 | `/events?role=admin` | GET (SSE) | controller | state, log lines, rate updates |
 | `/api/config` | GET | controller | full config **without the KickBot secret** (`publicConfig()`), state, in-memory log, paths |
