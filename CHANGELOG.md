@@ -2,7 +2,7 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
-## Unreleased
+## 1.3.3 — 2026-09-22
 
 - Hardening: the installed app ignores Chromium's remote-debugging switches (`--remote-debugging-port`, `--remote-debugging-pipe`, `--remote-debugging-address`), so it can no longer be started with the DevTools protocol open; the ignored switch is noted in the log. Development runs (`electron .`) are unchanged. Defence in depth — starting the app with arguments already requires access to the Windows account.
 
