@@ -1,0 +1,116 @@
+name: "Bug report / گزارش باگ"
+description: "Something in Sahne+ does not work as documented / چیزی مطابق مستندات کار نمی‌کند"
+title: "[Bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! / ممنون از گزارش شما.
+
+        **Never paste your KickBot widget URL or key** (in text, screenshots or logs). Remove donor names from logs.
+        آدرس یا کلید ویجت KickBot را هرگز (در متن، اسکرین‌شات یا لاگ) نگذارید و نام دونیت‌کننده‌ها را از لاگ پاک کنید.
+
+        Security problems: please do not use this form, see SECURITY.md. / مشکل امنیتی را اینجا گزارش نکنید.
+        Problem with Kick, KickBot or exchange-rate services? Use the "Service problem" form. / برای مشکل سرویس‌های بیرونی فرم «مشکل سرویس» را انتخاب کنید.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: "Before you submit / قبل از ارسال"
+      options:
+        - label: "I'm using the latest release from the Releases page / آخرین نسخه را از صفحه‌ی Releases دارم"
+          required: true
+        - label: "I searched existing issues / ایشوهای قبلی را جستجو کردم"
+          required: true
+        - label: "I removed the KickBot widget URL/key and donor names from everything I paste / کلید ویجت و نام دونیت‌کننده‌ها را از همه‌چیز حذف کرده‌ام"
+          required: true
+        - label: "This is not a security vulnerability / این یک آسیب‌پذیری امنیتی نیست"
+          required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: "Sahne+ version / نسخه"
+      description: "Shown on the About page. / در صفحه‌ی About دیده می‌شود."
+      placeholder: "1.3.1"
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: "Windows version / نسخه‌ی ویندوز"
+      placeholder: "Windows 11 23H2 x64"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Where does the problem happen? / مشکل در کدام بخش است؟"
+      options:
+        - "Overlay / Browser Source (OBS or Meld Studio)"
+        - "Alert playback, queue or timing"
+        - "Tier selection, keywords or amount conversion"
+        - "Files page / media import"
+        - "Look (appearance editor, card, fonts)"
+        - "In-app update"
+        - "Installer / uninstaller / autostart / tray"
+        - "Settings or UI"
+        - "Other / نمی‌دانم"
+    validations:
+      required: true
+
+  - type: input
+    id: broadcaster
+    attributes:
+      label: "Streaming software and version / نرم‌افزار استریم و نسخه"
+      description: "Only if the problem involves the Browser Source."
+      placeholder: "OBS Studio 31.0 / Meld Studio 1.x"
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: "What happened? / چه اتفاقی افتاد؟"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps to reproduce / مراحل بازتولید"
+      description: "Does it also happen with the Test donation / subscription buttons? / آیا با دکمه‌های تست هم رخ می‌دهد؟"
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Expected behavior / رفتار مورد انتظار"
+    validations:
+      required: true
+
+  - type: textarea
+    id: media
+    attributes:
+      label: "Media file details (if relevant) / مشخصات فایل مدیا"
+      description: "Format, codec, alpha channel (yes/no), resolution, size, where it came from."
+      placeholder: "WebM VP9 with alpha, 1080x1080, 4 MB"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Log lines / لاگ"
+      description: |
+        Relevant lines from `Documents\Sahne Plus\sahne-plus.log`. **Remove donor names first.**
+        خطوط مرتبط از فایل لاگ؛ ابتدا نام دونیت‌کننده‌ها را پاک کنید.
+      render: text
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: "Screenshots / anything else / اسکرین‌شات و توضیحات دیگر"

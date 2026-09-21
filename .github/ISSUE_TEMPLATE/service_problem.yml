@@ -1,0 +1,99 @@
+name: "Service problem (Kick / KickBot / exchange rate) / مشکل سرویس بیرونی"
+description: "Subs, donations or the dollar rate stopped working / ساب، دونیت یا نرخ دلار از کار افتاده"
+title: "[Service] "
+labels: ["service-compat", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Sahne+ relies on services it does not control (Kick's undocumented public chat feed, KickBot, baha24, bonbast).
+        When they change, a feature can break until an update is released. This form helps tell those cases apart from real bugs.
+        سرویس‌های بیرونی ممکن است بدون اطلاع تغییر کنند؛ این فرم کمک می‌کند این موارد از باگ واقعی جدا شوند.
+
+        **Never paste your KickBot widget URL or key.** / کلید یا آدرس ویجت KickBot را نگذارید.
+
+  - type: dropdown
+    id: service
+    attributes:
+      label: "Which part stopped working? / کدام بخش کار نمی‌کند؟"
+      options:
+        - "Kick subscriptions / gifted subscriptions (chat feed)"
+        - "Kick channel lookup (\"channel not found\")"
+        - "KickBot donations not arriving"
+        - "KickBot capture / payment confirmation"
+        - "Dollar-to-toman rate (baha24 / bonbast)"
+        - "Other"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: "Sahne+ version / نسخه"
+      placeholder: "1.3.1"
+    validations:
+      required: true
+
+  - type: input
+    id: since
+    attributes:
+      label: "Since when? / از چه زمانی؟"
+      description: "Date and roughly the time (with time zone). Did it ever work on this PC?"
+      placeholder: "2026-09-20, around 18:00 Tehran time; worked yesterday"
+    validations:
+      required: true
+
+  - type: textarea
+    id: error
+    attributes:
+      label: "Message shown in the app / پیام نمایش‌داده‌شده در برنامه"
+      description: "Copy the text of the error card in Settings or Home."
+
+  - type: dropdown
+    id: network
+    attributes:
+      label: "Network setup / وضعیت شبکه"
+      options:
+        - "Direct connection (no VPN)"
+        - "VPN with Windows system proxy (e.g. v2rayN system-proxy mode)"
+        - "VPN in TUN mode"
+        - "Manual proxy entered in Sahne+ Settings"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: input
+    id: vpn-app
+    attributes:
+      label: "VPN / proxy app (if any) / نرم‌افزار VPN یا پراکسی"
+      placeholder: "v2rayN 7.x, HTTP proxy 127.0.0.1:10809"
+
+  - type: dropdown
+    id: official
+    attributes:
+      label: "Does the official KickBot widget / kick.com itself work right now? / ویجت رسمی یا خود kick.com الان کار می‌کند؟"
+      options:
+        - "Yes, it works"
+        - "No, it fails too"
+        - "I did not test"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: test-buttons
+    attributes:
+      label: "Do the Test buttons play an alert? / دکمه‌های تست هشدار پخش می‌کنند؟"
+      description: "If yes, the overlay and media are fine and the problem is on the service side."
+      options:
+        - "Yes"
+        - "No"
+        - "I did not test"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Log lines / لاگ"
+      description: "From `Documents\\Sahne Plus\\sahne-plus.log`. **Remove donor names and any key.**"
+      render: text

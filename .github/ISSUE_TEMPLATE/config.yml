@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "Report a security vulnerability (private) / گزارش خصوصی آسیب‌پذیری امنیتی"
+    url: https://github.com/AmirEyZed/sahne-plus/security/advisories/new
+    about: "Do NOT open a public issue for security problems. / برای مشکل امنیتی ایشوی عمومی باز نکنید."
+  - name: "Security policy / سیاست امنیتی"
+    url: https://github.com/AmirEyZed/sahne-plus/blob/main/SECURITY.md
+    about: "Scope, supported versions and disclosure window. / محدوده، نسخه‌های پشتیبانی‌شده و زمان افشا."
