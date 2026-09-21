@@ -1,0 +1,57 @@
+name: "Feature request / درخواست قابلیت"
+description: "Suggest an improvement / یک بهبود یا قابلیت جدید پیشنهاد بدهید"
+title: "[Feature] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Note: Sahne+ has no telemetry or cloud backend, and every network connection is documented in PRIVACY.md.
+        Features that need a new outside service or a new stored kind of data will need a clear justification and a PRIVACY.md update.
+        قابلیت‌هایی که سرویس بیرونی یا نوع داده‌ی جدید لازم دارند باید توجیه روشن داشته باشند.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "What problem are you trying to solve? / چه مشکلی را حل می‌کنید؟"
+      description: "Describe your stream situation, not only the feature."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "Proposed solution / راه‌حل پیشنهادی"
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternatives or workarounds you tried / راه‌های جایگزین"
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Area / بخش"
+      options:
+        - "Alert selection (tiers, keywords, rules)"
+        - "Appearance / card / animations"
+        - "Media formats"
+        - "Streaming software integration (OBS, Meld, others)"
+        - "Other platforms or services"
+        - "Settings / UX"
+        - "Other"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: contribute
+    attributes:
+      label: "Would you help implement or test it? / آیا در پیاده‌سازی یا تست کمک می‌کنید؟"
+      options:
+        - "Yes, I can send a pull request"
+        - "I can test pre-release builds"
+        - "No, just suggesting"
+    validations:
+      required: true
