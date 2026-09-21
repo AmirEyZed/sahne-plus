@@ -1,10 +1,11 @@
 ## Sahne+ 1.3.2
 
-**Version:** 1.3.2 · **Release date:** 2026-09-20
+**Version:** 1.3.2 · **Release date:** 2026-09-21
 
 ### What's new
 - **Two security fixes** reported by [KernelDotDLL](https://github.com/KernelDotDLL) (thank you). A web page open in the streamer's browser could connect to the alert event stream: it could not read anything, but the connection counted as a Browser Source, so an alert could be consumed while OBS was closed. The stream now refuses connections from other sites and limits how many connections each role may open. The media route also served every file in the media folder; only registered alert files are served now.
-- Fixed: in the file editor the header icon was oversized and the preview collapsed when the window was short.
+- Fixed: in the file editor the header icon was oversized and the preview collapsed when the window was short; the setup card on the Home page has a proper gap below it (thanks [TikTaak](https://github.com/TikTaak)).
+- New issue forms in the repository, in Persian and English (thanks [shahriaarrr](https://github.com/shahriaarrr)).
 - Verify this installer: `gh attestation verify .\Sahne-Plus-Setup-1.3.2.exe --repo AmirEyZed/sahne-plus`
 
 ### How to update
