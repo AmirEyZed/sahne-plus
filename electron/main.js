@@ -79,6 +79,25 @@ const secretStore = {
   decrypt: b64 => safeStorage.decryptString(Buffer.from(String(b64), 'base64'))
 };
 
+// ---------- no remote debugging in the packaged app ----------
+// The EnableNodeCliInspectArguments fuse does not cover Chromium's own switches: `--remote-debugging-port` would let a
+// local process script the controller window (and the preload bridge) over the DevTools protocol. The DevTools server
+// starts after the main script ran, so removing the switches here is enough; if that ever fails, refuse to start.
+// Unpackaged runs (`electron .`) keep the switches for test tooling.
+const REMOTE_DEBUG_SWITCHES = ['remote-debugging-port', 'remote-debugging-pipe', 'remote-debugging-address'];
+if (app.isPackaged) {
+  const found = REMOTE_DEBUG_SWITCHES.filter(s => app.commandLine.hasSwitch(s));
+  for (const s of found) app.commandLine.removeSwitch(s);
+  if (found.length) {
+    const left = REMOTE_DEBUG_SWITCHES.filter(s => app.commandLine.hasSwitch(s));
+    fileLog(
+      `[${new Date().toISOString()}] WARN ignored command-line switch ${found.map(s => '--' + s).join(', ')}` +
+        (left.length ? ' — could not remove it, quitting' : '')
+    );
+    if (left.length) app.exit(1);
+  }
+}
+
 // ---------- first run: import the legacy KickAlerts folder (copy, never move) ----------
 function migrateLegacy() {
   const cfg = path.join(DATA_DIR, 'config.json');

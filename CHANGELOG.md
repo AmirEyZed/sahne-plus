@@ -2,6 +2,10 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
+## Unreleased
+
+- Hardening: the installed app ignores Chromium's remote-debugging switches (`--remote-debugging-port`, `--remote-debugging-pipe`, `--remote-debugging-address`), so it can no longer be started with the DevTools protocol open; the ignored switch is noted in the log. Development runs (`electron .`) are unchanged. Defence in depth — starting the app with arguments already requires access to the Windows account.
+
 ## 1.3.2 — 2026-09-21
 
 - Security (reported by [KernelDotDLL](https://github.com/KernelDotDLL), thank you): a page on another website that the streamer had open could connect to the alert event stream. It could not read anything, but the connection alone counted as a Browser Source, so an alert could be consumed while OBS was closed, and the number of connections was unbounded. The event stream now refuses requests from another site and caps the number of connections per role.

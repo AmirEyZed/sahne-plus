@@ -70,4 +70,5 @@ Honest current state, so nobody over-trusts a release:
 | Signed checksums (GPG / minisign) | **not yet** |
 | Reproducible builds | **not verified** — electron-builder output is not guaranteed bit-for-bit reproducible |
 | Updates | **update check + one-click update since 1.3.1** — the app checks this repository's latest release (can be turned off); an update is downloaded only after the user clicks, verified against the release's `SHA256SUMS.txt` and installed with the official installer. Never silent or automatic. The checksum comes from the same release, so authenticity rests on this GitHub account (protected with two-factor authentication); the installer is not code-signed |
+| Electron fuses / debug switches | **locked down** — `RunAsNode`, `NODE_OPTIONS` and `--inspect` are disabled by fuses, the asar archive is integrity-checked, and (after 1.3.2) the installed app strips Chromium's `--remote-debugging-*` switches at startup, so it cannot be driven over the DevTools protocol |
 | Runtime npm dependencies | **none** — only Node built-ins and Electron |
