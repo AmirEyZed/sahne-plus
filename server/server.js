@@ -83,7 +83,7 @@ const DEFAULT_CONFIG = {
   },
   files: [],
   showAlertWithoutMedia: true,
-  rate: { auto: true, manual: null, value: null, updatedAt: null, source: null, intervalMin: 2, proxy: '' },
+  rate: { auto: true, manual: null, value: null, updatedAt: null, source: null, intervalMin: 2, proxy: '', fx: {} },
   kick: {
     enabled: true,
     channel: '',
@@ -269,6 +269,59 @@ function seTokenOk(t) {
   } catch {
     return false;
   }
+}
+
+// Other currencies a StreamElements tipping page may use, converted to toman with the sell rates that baha24
+// (and bonbast as fallback) publish next to the dollar. Anything else is shown as "5 XYZ" without conversion.
+const FX_CODES = [
+  'EUR',
+  'GBP',
+  'AED',
+  'TRY',
+  'CAD',
+  'CHF',
+  'RUB',
+  'CNY',
+  'INR',
+  'SGD',
+  'NOK',
+  'SEK',
+  'DKK',
+  'AUD',
+  'THB',
+  'KWD',
+  'MYR',
+  'OMR',
+  'JPY',
+  'AZN',
+  'AFN'
+];
+function sanitizeFx(fx) {
+  const o = {};
+  if (fx && typeof fx === 'object')
+    for (const c of FX_CODES) {
+      const v = Number(fx[c]);
+      if (Number.isFinite(v) && v >= 10 && v <= 1e9) o[c] = Math.round(v);
+    }
+  return o;
+}
+function fxFromBaha24(list) {
+  const fx = {};
+  for (const x of Array.isArray(list) ? list : []) {
+    const sym = x && String(x.symbol || '').toUpperCase();
+    if (!FX_CODES.includes(sym)) continue;
+    const v = Number(String(x.sell).replace(/,/g, ''));
+    if (Number.isFinite(v) && v >= 10 && v <= 1e9) fx[sym] = Math.round(v);
+  }
+  return fx;
+}
+function fxFromBonbast(j) {
+  const fx = {};
+  for (const c of FX_CODES) {
+    const v = Number(String((j && j[c.toLowerCase() + '1']) || '').replace(/,/g, ''));
+    if (Number.isFinite(v) && v >= 10 && v <= 1e9) fx[c] = Math.round(v);
+  }
+  return fx;
 }
 
 // ---------- network helpers (pure, unit-tested) ----------
@@ -458,6 +511,7 @@ function createServer(opts) {
       merged.rate.proxy =
         process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy || '';
     merged.rate.intervalMin = Math.max(LIMITS.minRateInterval, Number(merged.rate.intervalMin) || 2);
+    merged.rate.fx = sanitizeFx(merged.rate.fx);
     merged.port = finite(merged.port, 1024, 65535, 7788);
     if (!ENUMS.mode.includes(merged.mode)) merged.mode = 'standalone';
     return merged;
@@ -1026,7 +1080,8 @@ function createServer(opts) {
 
   // ---------- USD -> Toman rate: baha24 public JSON API first, bonbast.com (scraped) as fallback. Never silently trusted. ----------
   let rateError = null,
-    lastBonbastAttempt = 0;
+    lastBonbastAttempt = 0,
+    lastFx = null;
   async function fetchBaha24() {
     const attempt = async px => {
       const r = await httpsRequest(
@@ -1043,6 +1098,7 @@ function createServer(opts) {
       }
       const list = Array.isArray(j) ? j : j && Array.isArray(j.data) ? j.data : null;
       const usd = list ? list.find(x => x && String(x.symbol).toUpperCase() === 'USD') : null;
+      lastFx = fxFromBaha24(list);
       if (!usd) throw new Error('baha24: USD not in response');
       const v = Number(String(usd.sell).replace(/,/g, ''));
       if (!Number.isFinite(v) || v < 1000 || v > 1e9)
@@ -1096,6 +1152,7 @@ function createServer(opts) {
       const v = Number(String(j.usd1 || '').replace(/,/g, ''));
       if (!Number.isFinite(v) || v < 1000 || v > 1e9)
         throw new Error('bonbast usd1 out of range: ' + String(j.usd1).slice(0, 20));
+      lastFx = fxFromBonbast(j);
       return Math.round(v);
     };
     const order = await routesFor(BONBAST, false); // bonbast is filtered in Iran: proxies first, direct last
@@ -1138,6 +1195,7 @@ function createServer(opts) {
       config.rate.value = v;
       config.rate.updatedAt = new Date().toISOString();
       config.rate.source = source;
+      if (lastFx && Object.keys(lastFx).length) config.rate.fx = lastFx; // other currencies from the same answer
       rateError = null;
       saveConfig();
       if (changed) log('info', 'نرخ دلار به‌روز شد (' + source + ')', { toman: v });
@@ -1711,10 +1769,16 @@ function createServer(opts) {
   }
 
   // ---------- queue / playback ----------
+  // toman per unit of a currency: USD from the rate card (manual or fetched), others from the fetched fx table
+  function fxRate(code) {
+    if (!code || code === 'USD') return currentRate();
+    const v = config.rate.fx && config.rate.fx[code];
+    return Number.isFinite(v) && v > 0 ? v : null;
+  }
   function tomanFor(t) {
     if (t.toman_override != null) return t.toman_override;
-    if (t.currency && t.currency !== 'USD') return null;
-    return tomanOf((t.amount_total || 0) / 100);
+    const r = fxRate(t.currency || 'USD');
+    return r ? Math.round(((t.amount_total || 0) / 100) * r) : null;
   }
   function tipSummary(t) {
     return {
@@ -1870,10 +1934,11 @@ function createServer(opts) {
     };
   }
   function pickMedia(t) {
-    const foreign = !!(t.currency && t.currency !== 'USD'); // a StreamElements tip in another currency: no rate source, keyword files only
-    const usd = foreign ? 0 : (t.amount_total || 0) / 100;
     const rate = currentRate();
-    const toman = t.toman_override != null ? Number(t.toman_override) : foreign ? null : rate ? usd * rate : null;
+    const toman = t.toman_override != null ? Number(t.toman_override) : tomanFor(t); // any currency with a known rate
+    // dollar-based tiers (minAmount) see the dollar equivalent; a currency without a rate matches keyword files only
+    const usd =
+      t.currency && t.currency !== 'USD' ? (toman != null && rate ? toman / rate : 0) : (t.amount_total || 0) / 100;
     const msg = normFa(t.tip_message);
     const tags = (t.tags || []).map(x => normFa(x));
     const files = config.files.filter(f => f.enabled !== false && fs.existsSync(path.join(MEDIA, f.file)));
@@ -2679,5 +2744,9 @@ module.exports = {
   routeOrder,
   describeKickFailure,
   parseSeActivity,
-  seTokenOk
+  seTokenOk,
+  fxFromBaha24,
+  fxFromBonbast,
+  sanitizeFx,
+  FX_CODES
 };

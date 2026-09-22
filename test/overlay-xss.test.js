@@ -296,6 +296,45 @@ console.log('OK: local image alerts render; foreign image hosts refused');
   });
   assert.strictEqual(lastCard().style.visibility, 'hidden', 'no per-file value: the appearance delay applies');
   console.log('OK: card delay (per file over appearance), TTS waits for the card');
+  // StreamElements tips in another currency (1.3.5)
+  const cardText = m => {
+    es.onmessage({
+      data: JSON.stringify({
+        type: 'play',
+        tip: { ...base, id: 'c-' + Math.random(), tts_url: null, media: null, gif_url: null, ...m }
+      })
+    });
+    return stage.children[stage.children.length - 1].querySelector('.card').innerHTML; // the fake DOM has no textContent
+  };
+  es.onmessage({
+    data: JSON.stringify({
+      type: 'config',
+      appearance: { ...appearance, currency: 'toman-both', persianDigits: false, cardDelay: 0, animation: 'none' }
+    })
+  });
+  assert.ok(
+    cardText({ amount: 5, currency: 'EUR', toman: 1338900 }).includes('(5 EUR)'),
+    'euro with a rate: toman plus the original amount'
+  );
+  assert.ok(
+    cardText({ amount: 5, currency: 'EUR', toman: null }).includes('5 EUR'),
+    'euro without a rate: amount and code'
+  );
+  es.onmessage({
+    data: JSON.stringify({
+      type: 'config',
+      appearance: { ...appearance, currency: 'eq-en', persianDigits: false, cardDelay: 0, animation: 'none' }
+    })
+  });
+  assert.ok(
+    cardText({ amount: 5, currency: 'EUR', toman: 1338900 }).includes('5 EUR = 1,338,900 Toman'),
+    'equation format with euro'
+  );
+  assert.ok(
+    cardText({ amount: 7, currency: 'USD', toman: 1600000 }).includes('7$ = 1,600,000 Toman'),
+    'dollar unchanged'
+  );
+  console.log('OK: other currencies on the card');
   process.exit(0);
 })().catch(e => {
   console.error(e);

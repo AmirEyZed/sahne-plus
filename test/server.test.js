@@ -19,7 +19,10 @@ const {
   routeOrder,
   describeKickFailure,
   parseSeActivity,
-  seTokenOk
+  seTokenOk,
+  fxFromBaha24,
+  fxFromBonbast,
+  sanitizeFx
 } = require('../server/server');
 
 test('system proxy parsing, route order and readable Kick errors (1.3.1)', () => {
@@ -538,6 +541,85 @@ test('StreamElements: setup endpoint validates the token before any network call
   assert.equal((await req('POST', '/api/se/disconnect')).status, 200);
   const onDisk = JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8'));
   assert.ok(!onDisk.se_token && !onDisk.se_token_enc, 'nothing stored after disconnect');
+});
+
+test('other currencies: rates are read from baha24 / bonbast and a StreamElements tip in euro gets a toman value (1.3.5)', async t => {
+  assert.deepEqual(
+    fxFromBaha24([
+      { symbol: 'USD', sell: '233500.00' },
+      { symbol: 'EUR', sell: '267,780.00' },
+      { symbol: 'BITCOIN', sell: '85985' },
+      { symbol: 'gbp', sell: '312140' },
+      { symbol: 'AED', sell: 'n/a' }
+    ]),
+    { EUR: 267780, GBP: 312140 },
+    'fiat codes only, USD and crypto excluded, bad values skipped'
+  );
+  assert.deepEqual(fxFromBonbast({ usd1: '233500', eur1: '267,780', try1: '5,600', xyz1: '1' }), {
+    EUR: 267780,
+    TRY: 5600
+  });
+  assert.deepEqual(sanitizeFx({ EUR: '267780', GBP: -5, XYZ: 100, AED: 1e12 }), { EUR: 267780 });
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sahne-test-'));
+  const port = 8300 + Math.floor(Math.random() * 100);
+  fs.writeFileSync(
+    path.join(dir, 'config.json'),
+    JSON.stringify({
+      port,
+      rate: { auto: false, manual: 200000, fx: { EUR: 250000 } },
+      kick: { enabled: false },
+      app: { autostart: false }
+    })
+  );
+  const srv = createServer({
+    dataDir: dir,
+    publicDir: path.join(__dirname, '..', 'public'),
+    appVersion: 'test',
+    testHooks: { offline: true }
+  });
+  await srv.start();
+  const events = [];
+  let es = null;
+  t.after(async () => {
+    if (es) es.destroy();
+    await srv.stop();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  es = http.get({ host: '127.0.0.1', port, path: '/events?role=overlay' }, res => {
+    res.setEncoding('utf8');
+    res.on('data', c => events.push(c));
+  });
+  await new Promise(r => setTimeout(r, 150));
+  const tip = (id, currency) => ({
+    stripe_pi_id: id,
+    tipper_name: 'Euro Donor',
+    amount_total: 500,
+    currency,
+    approval_status: 'approved',
+    is_local: true,
+    source: 'streamelements',
+    created_at: new Date().toISOString()
+  });
+  srv.testHooks.injectTip(tip('se_eur1', 'EUR'));
+  await new Promise(r => setTimeout(r, 300));
+  const played = events
+    .join('')
+    .split('\n')
+    .filter(l => l.startsWith('data: ') && l.includes('"type":"play"'))
+    .map(l => JSON.parse(l.slice(6)).tip);
+  assert.equal(played.length, 1, 'the euro tip played');
+  assert.equal(played[0].currency, 'EUR');
+  assert.equal(played[0].toman, 1250000, '5 EUR x 250000');
+  assert.equal(played[0].amount, 5);
+  const cfgText = await new Promise(r =>
+    http.get({ host: '127.0.0.1', port, path: '/api/config' }, res => {
+      let d = '';
+      res.on('data', c => (d += c));
+      res.on('end', () => r(d));
+    })
+  );
+  assert.equal(JSON.parse(cfgText).state.recent[0].toman, 1250000, 'the recent list uses the same conversion');
 });
 
 test('in-app legal documents are identical to the repository copies', () => {

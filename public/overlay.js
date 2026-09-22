@@ -69,23 +69,42 @@
     if (t >= 1000) return fmtNum(t / 1000, 0) + ' هزار تومان';
     return fmtNum(t) + ' تومان';
   }
+  // the amount in its own currency: "$5" style for dollars, "5 EUR" for a StreamElements tip in another currency
+  function fmtOrig(tip, fa) {
+    if (tip.currency && tip.currency !== 'USD') {
+      const u = Math.round(tip.amount * 100) / 100;
+      return (fa ? fmtNum(u, 2) : String(u)) + ' ' + tip.currency;
+    }
+    return fmtUsd(tip.amount);
+  }
   function fmtAmount(tip) {
-    if (tip.currency && tip.currency !== 'USD') return Math.round(tip.amount * 100) / 100 + ' ' + tip.currency; // a StreamElements tip in another currency
+    const foreign = !!(tip.currency && tip.currency !== 'USD');
+    if (foreign && tip.toman == null) return fmtOrig(tip); // no rate for this currency: amount and code only
     const c = A.currency || 'toman';
     if (c === 'eq-en') {
       const u = Math.round(tip.amount * 100) / 100;
-      return tip.toman != null ? `${u}$ = ${Math.round(tip.toman).toLocaleString('en-US')} Toman` : `${u}$`;
+      const left = foreign ? u + ' ' + tip.currency : u + '$';
+      return tip.toman != null ? left + ' = ' + Math.round(tip.toman).toLocaleString('en-US') + ' Toman' : left;
     }
     if (c === 'eq-fa') {
       const u = fmtNum(Math.round(tip.amount * 100) / 100, 2);
-      return tip.toman != null ? `${u}$ = ${fmtNum(tip.toman)} تومان` : `${u}$`;
+      const left = foreign ? u + ' ' + tip.currency : u + '$';
+      return tip.toman != null ? left + ' = ' + fmtNum(tip.toman) + ' تومان' : left;
     }
     if (c.startsWith('toman') && tip.toman != null) {
       if (c === 'toman-full') return fmtToman(tip.toman, true);
-      if (c === 'toman-both') return fmtToman(tip.toman) + ' ($' + Math.round(tip.amount * 100) / 100 + ')';
+      if (c === 'toman-both')
+        return (
+          fmtToman(tip.toman) +
+          ' (' +
+          (foreign
+            ? Math.round(tip.amount * 100) / 100 + ' ' + tip.currency
+            : '$' + Math.round(tip.amount * 100) / 100) +
+          ')'
+        );
       return fmtToman(tip.toman);
     }
-    return fmtUsd(tip.amount);
+    return fmtOrig(tip);
   }
   function dirOf(s) {
     return /[؀-ۿ]/.test(s || '') ? 'rtl' : 'ltr';
@@ -124,7 +143,7 @@
       name: `<b dir="auto">${esc(tip.name)}</b>`,
       amount: A.showAmount ? pill(fmtAmount(tip)) : '',
       toman: tip.toman != null ? pill(fmtToman(tip.toman)) : '',
-      usd: pill(fmtUsd(tip.amount)),
+      usd: pill(fmtOrig(tip)),
       count: pill(A.persianDigits ? faDigits(String(tip.count || 1)) : String(tip.count || 1))
     };
     return esc(tpl).replace(/\{(name|amount|toman|usd|count)\}/g, (m, k) => parts[k]);

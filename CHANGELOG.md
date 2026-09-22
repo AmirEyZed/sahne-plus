@@ -6,6 +6,11 @@ All notable changes to the public builds. Versions follow semantic versioning.
 
 - Hardening: the installed app ignores Chromium's remote-debugging switches (`--remote-debugging-port`, `--remote-debugging-pipe`, `--remote-debugging-address`), so it can no longer be started with the DevTools protocol open; the ignored switch is noted in the log. Development runs (`electron .`) are unchanged. Defence in depth — starting the app with arguments already requires access to the Windows account.
 
+## 1.3.5 — 2026-09-22
+
+- Fixed: a StreamElements tip in euro (or GBP, AED, TRY, CAD, CHF and other common currencies) showed only "5 EUR" and matched no tier, so no file played. The rates baha24/bonbast publish next to the dollar are now stored with the dollar rate; such tips are converted to toman, use the same tiers, and the card shows for example "5 EUR = 1,338,900 تومان". A currency without a published rate is still shown as amount + code.
+- Fixed: the "طلایی کلاسیک" preset wrote "{name} tip {amount}"; it now reads "{name} tipped {amount}" (existing custom templates are not changed).
+
 ## 1.3.4 — 2026-09-22
 
 - New: **StreamElements tips**. Paste the JWT token of your StreamElements account in Settings and tips from your StreamElements tipping page enter the same queue as KickBot donations, with the same files and tiers. The token is stored encrypted like the KickBot key, never shown or logged, and removed with one click. Tips in a currency other than USD are shown with their amount and currency code (no toman conversion). New network destinations are documented in PRIVACY.md and docs/DATA_FLOW.md.
