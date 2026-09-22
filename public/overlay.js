@@ -70,6 +70,7 @@
     return fmtNum(t) + ' تومان';
   }
   function fmtAmount(tip) {
+    if (tip.currency && tip.currency !== 'USD') return Math.round(tip.amount * 100) / 100 + ' ' + tip.currency; // a StreamElements tip in another currency
     const c = A.currency || 'toman';
     if (c === 'eq-en') {
       const u = Math.round(tip.amount * 100) / 100;

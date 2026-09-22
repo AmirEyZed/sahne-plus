@@ -17,7 +17,9 @@ const {
   isNetError,
   parsePacProxy,
   routeOrder,
-  describeKickFailure
+  describeKickFailure,
+  parseSeActivity,
+  seTokenOk
 } = require('../server/server');
 
 test('system proxy parsing, route order and readable Kick errors (1.3.1)', () => {
@@ -442,6 +444,100 @@ test('media: only registered alert files are served (1.3.2)', async t => {
     200,
     'case-insensitive on Windows'
   );
+});
+
+test('StreamElements: activity parsing and token validation (1.3.4)', () => {
+  const tip = parseSeActivity({
+    _id: '66f1a2b3c4d5e6f7a8b9c0d1',
+    channel: 'x',
+    type: 'tip',
+    provider: 'kick',
+    createdAt: '2026-09-22T10:00:00.000Z',
+    data: {
+      tipId: 'abc',
+      username: 'donor<script>',
+      displayName: 'Donor ‮x',
+      amount: 12.5,
+      currency: 'usd',
+      message: 'hi <b>'
+    }
+  });
+  assert.equal(tip.stripe_pi_id, 'se_66f1a2b3c4d5e6f7a8b9c0d1');
+  assert.equal(tip.amount_total, 1250);
+  assert.equal(tip.currency, 'USD');
+  assert.equal(tip.tipper_name, 'Donor x', 'display name preferred, bidi control stripped');
+  assert.equal(tip.tip_message, 'hi <b>', 'text is kept as text (the overlay escapes it)');
+  assert.ok(tip.is_local && !tip.is_test && tip.source === 'streamelements' && tip.approval_status === 'approved');
+  const eur = parseSeActivity({ _id: 'a1', type: 'tip', data: { amount: 5, currency: 'EUR', username: 'u' } });
+  assert.equal(eur.currency, 'EUR');
+  assert.equal(eur.amount_total, 500);
+  assert.equal(
+    parseSeActivity({ _id: 'a2', type: 'tip', isMock: true, data: { amount: 1, username: 'u' } }).is_test,
+    true
+  );
+  assert.equal(parseSeActivity({ _id: 'a3', type: 'subscriber', data: { username: 'u' } }), null, 'only tips');
+  assert.equal(parseSeActivity({ type: 'tip', data: { amount: 1 } }), null, 'needs an id');
+  assert.equal(parseSeActivity(null), null);
+  const fake = 'eyJhbGciOiJIUzI1NiJ9.' + Buffer.from('{"channel":"x"}').toString('base64url') + '.c2ln';
+  assert.ok(seTokenOk(fake));
+  assert.ok(!seTokenOk('not a token'));
+  assert.ok(!seTokenOk('a.b'));
+  assert.ok(!seTokenOk('x'.repeat(5000)));
+});
+
+test('StreamElements: setup endpoint validates the token before any network call; state and config expose no token', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sahne-test-'));
+  const port = 8200 + Math.floor(Math.random() * 100);
+  fs.writeFileSync(
+    path.join(dir, 'config.json'),
+    JSON.stringify({
+      port,
+      rate: { auto: false },
+      kick: { enabled: false },
+      app: { autostart: false },
+      se_token: 'junk'
+    })
+  );
+  const srv = createServer({
+    dataDir: dir,
+    publicDir: path.join(__dirname, '..', 'public'),
+    appVersion: 'test',
+    testHooks: { offline: true }
+  });
+  await srv.start();
+  t.after(async () => {
+    await srv.stop();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  const req = (method, p, body) =>
+    new Promise((resolve, reject) => {
+      const r = http.request(
+        {
+          host: '127.0.0.1',
+          port,
+          path: p,
+          method,
+          headers: { 'Content-Type': 'application/json', Origin: `http://127.0.0.1:${port}` }
+        },
+        res => {
+          let d = '';
+          res.on('data', c => (d += c));
+          res.on('end', () => resolve({ status: res.statusCode, body: d }));
+        }
+      );
+      r.on('error', reject);
+      if (body) r.write(JSON.stringify(body));
+      r.end();
+    });
+  const cfg = JSON.parse((await req('GET', '/api/config')).body);
+  assert.equal(cfg.config.streamelements.configured, false, 'a malformed stored token is discarded');
+  assert.equal(cfg.state.se.status, 'unconfigured');
+  assert.ok(!JSON.stringify(cfg).includes('se_token'), 'no token field reaches the UI');
+  assert.equal((await req('POST', '/api/se/setup', { token: 'not-a-jwt' })).status, 400);
+  assert.equal((await req('POST', '/api/se/setup', {})).status, 400);
+  assert.equal((await req('POST', '/api/se/disconnect')).status, 200);
+  const onDisk = JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8'));
+  assert.ok(!onDisk.se_token && !onDisk.se_token_enc, 'nothing stored after disconnect');
 });
 
 test('in-app legal documents are identical to the repository copies', () => {

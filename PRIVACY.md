@@ -22,6 +22,7 @@ All application data lives in `Documents\Sahne Plus`:
 |---|---|---|
 | Appearance settings, alert tiers and keywords, Kick channel name, exchange-rate settings, app options | `config.json` | plain JSON |
 | Your KickBot widget key (the secret part of the widget URL) | `config.json` → `secret_id_enc` | **encrypted with Windows Data Protection (DPAPI)** through Electron `safeStorage`, bound to your Windows account. If DPAPI is unavailable the app tells you in Settings and stores it unencrypted. |
+| Your StreamElements JWT token (optional, 1.3.4+) | `config.json` → `se_token_enc` | same protection as the KickBot key (DPAPI). This token controls your whole StreamElements account; the app only reads the tipping feed with it. Removed by «قطع اتصال و حذف توکن». |
 | Alert media you import (videos, images, sounds) | `media\` | copied into this folder; your original files are never modified or deleted |
 | Ids of the last 1000 alerts already shown | `played.json` | prevents replaying a donation after a restart |
 | Diagnostic log | `sahne-plus.log` | connection status, errors, and for each alert: donor/subscriber name, amount, message and the media used. The KickBot key is never written to the log. Rotates at 5 MB. |
@@ -37,6 +38,7 @@ Electron (the runtime) keeps its own browser profile in `%APPDATA%\SahnePlus` (c
 | **baha24.com** (`/api/v1/price`, public JSON API) | convert dollar donation amounts to toman | a plain GET request, no account, no key | the current USD sell rate |
 | **bonbast.com** (fallback only, when baha24 fails) | same | a page request with a normal desktop browser identity | the current USD sell rate |
 | **Meld Studio** on your own computer (`127.0.0.1:13376`) | reload the Browser Source layer if it lost the connection | the layer URL | layer list |
+| **StreamElements** (`api.streamelements.com` once at setup, then `astro.streamelements.com`), **only if you connect a StreamElements account** (1.3.4+) | receive the tips from your StreamElements tipping page | your StreamElements JWT token, to subscribe to your own channel's activity feed; at setup, one request for your channel id | tip events: name, amount, currency, message |
 | **GitHub** (`github.com`; release files are served from GitHub's release-asset storage), since 1.3.1 | tell you when a new Sahne Plus version exists; download it when you click «آپدیت» | a HEAD request for `github.com/AmirEyZed/sahne-plus/releases/latest` 30 s after start and every 6 hours, with the app version in the User-Agent; after your click, downloads of the installer and `SHA256SUMS.txt` | the latest version number; the installer |
 
 If you configure a proxy in Settings, or Windows has a system proxy (for example a VPN app in "system proxy" mode), the kick.com and bonbast.com requests go through it — the manual proxy first, then the system proxy, then a direct connection — and baha24.com is retried through them if the direct request fails. Only plain HTTP proxies are used. The KickBot connection and Kick's chat feed do not use a proxy.

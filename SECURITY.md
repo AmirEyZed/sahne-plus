@@ -47,7 +47,7 @@ Please include:
 
 In scope:
 
-- the local server on `127.0.0.1:7788` being reachable from another machine, from another origin in the browser (CSRF, DNS rebinding) or leaking the KickBot widget key;
+- the local server on `127.0.0.1:7788` being reachable from another machine, from another origin in the browser (CSRF, DNS rebinding) or leaking the KickBot widget key or the StreamElements token;
 - the Browser Source executing injected content from a donation name or message;
 - imported media files causing code execution or path traversal;
 - the Electron shell (IPC, preload bridge, navigation, permissions) and the installer doing anything not described in [PRIVACY.md](PRIVACY.md);

@@ -52,7 +52,7 @@ Current supply-chain status (code signing, signed checksums, CI) is kept honest 
 
 ## How it works
 
-1. Paste your **KickBot widget URL** into Sahne+ (Home page). Sahne+ connects to the same KickBot event source the official widget uses and receives donations in real time. When an alert starts, Sahne+ performs the same "capture" call the official widget performs; KickBot and its payment provider decide the outcome — Sahne+ does not process payments itself.
+1. Paste your **KickBot widget URL** into Sahne+ (Home page). Sahne+ connects to the same KickBot event source the official widget uses and receives donations in real time. When an alert starts, Sahne+ performs the same "capture" call the official widget performs; KickBot and its payment provider decide the outcome — Sahne+ does not process payments itself. If you also take tips through **StreamElements**, paste your StreamElements JWT token in Settings; those tips enter the same queue (Sahne+ only reads the tipping feed with it).
 2. Enter your **Kick channel name** (Settings). Subscriptions and gifted subscriptions are read from Kick's public chat feed. No Kick login is needed. This uses Kick's public chat infrastructure, which Kick has not documented for third-party use; if Kick changes it, this feature may stop working until an update is released. If kick.com is filtered on your network, Sahne+ reaches it through your VPN app's Windows system proxy automatically, or through a proxy you enter in Settings.
 3. Add the **Browser Source** URL (`http://localhost:7788/overlay`, 1920×1080) to **OBS Studio** or **Meld Studio**.
 4. Drop your media files into the **Files** page and give each one a **minimum amount** in toman. Files must already be transparent (WebM with alpha) if you want them to play without a background; Sahne+ plays files as they are.
@@ -79,6 +79,7 @@ Alerts play one at a time with a configurable gap. If the Browser Source is clos
 - Transparent WebM / MP4 / GIF / image / audio alerts, fullscreen or boxed above the card
 - Live preview with drag-and-drop card positioning; fonts, colours, animations, amount formats, Persian digits
 - Optional delay before the name/amount card appears, globally or per file
+- Optional StreamElements tips next to KickBot (one token, same files and tiers)
 - Test donation / subscription / gift buttons (never touch KickBot)
 - Runs in the system tray; optional start with Windows
 - New-version notice inside the app and a one-click update, verified against the release checksum — never automatic

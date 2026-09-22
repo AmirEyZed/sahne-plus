@@ -68,6 +68,7 @@
     <div class="rail-status">
       <div class="status-pill" id="stKb"><span class="dot"></span>کیک‌بات (دونیت)</div>
       <div class="status-pill" id="stKick"><span class="dot"></span>چت کیک (ساب)</div>
+      <div class="status-pill" id="stSe" hidden><span class="dot"></span>StreamElements</div>
       <div class="status-pill" id="stOv"><span class="dot"></span>Browser Source<span class="v num" id="stOvN">0</span></div>
     </div>
     <button class="exit" id="btnExit"><svg><use href="#i-power"/></svg>خروج</button>
@@ -93,6 +94,7 @@
           <h3><svg><use href="#i-pulse"/></svg>وضعیت</h3>
           <div class="kv"><b>کیک‌بات (دونیت)</b><span class="chip" id="hKb">—</span></div>
           <div class="kv"><b>چت کیک (ساب / ساب‌گیفت)</b><span class="chip" id="hKick">—</span></div>
+          <div class="kv" id="hSeRow" hidden><b>StreamElements (دونیت)</b><span class="chip" id="hSe">—</span></div>
           <div class="kv"><b>Browser Source متصل</b><span class="num" id="hOv">0</span></div>
           <div class="kv"><b>حالت کار</b><span id="hMode">—</span></div>
           <div class="kv"><b>نرخ دلار</b><span class="row" style="gap:8px"><span class="pill-num" id="hRate">—</span><span class="hint" style="margin:0" id="hRateMeta"></span><button class="btn sm icon" id="hRateBtn" title="به‌روزرسانی الان"><svg><use href="#i-refresh"/></svg></button></span></div>
@@ -259,6 +261,15 @@
           <p class="hint">کلید ویجت هرگز نمایش داده نمی‌شود، در لاگ نمی‌آید و در صورت پشتیبانی ویندوز به‌صورت رمزنگاری‌شده (DPAPI) ذخیره می‌شود. هر کسی که این لینک را داشته باشد می‌تواند رویدادهای دونیت شما را دریافت کند؛ آن را با کسی به اشتراک نگذارید.</p>
           <div class="field" style="margin:10px 0"><label>تغییر اتصال: لینک ویجت جدید</label><div class="url"><input type="text" id="setupUrl2" placeholder="https://widgets.kickbot.com/external/tipping/…" autocomplete="off"><button class="btn" id="btnSetup2">اتصال</button></div><span class="hint" id="setupMsg2"></span></div>
           <div class="row"><button class="btn danger" id="btnDisconnect"><svg><use href="#i-x"/></svg>قطع اتصال و حذف کلید کیک‌بات</button></div>
+        </div>
+        <div class="card span-6">
+          <h3><svg><use href="#i-link"/></svg>StreamElements (دونیت)<span class="chip" id="seChip" style="margin-inline-start:auto">—</span></h3>
+          <p class="hint" style="margin:0 0 10px">اگر از صفحه‌ی تیپ StreamElements هم استفاده می‌کنی، توکن JWT حسابت را اینجا بگذار (داشبورد StreamElements → Account → Channels → Show secrets → JWT Token). دونیت‌ها مثل کیک‌بات وارد صف می‌شوند و همان فایل‌ها و پله‌ها را دارند.</p>
+          <div class="kv"><b>حساب</b><span id="seAccount">—</span></div>
+          <div class="kv"><b>توکن</b><span id="seSecret" class="hint" style="margin:0">—</span></div>
+          <div class="field" style="margin:10px 0"><label>توکن JWT</label><div class="url"><input type="password" id="seToken" placeholder="eyJ…" autocomplete="off"><button class="btn primary" id="btnSeSetup">اتصال</button></div><p class="hint" id="seMsg" style="margin-top:6px"></p></div>
+          <p class="hint">این توکن به کل حساب StreamElements دسترسی دارد؛ به کسی نده. برنامه آن را رمزنگاری‌شده ذخیره می‌کند و هرگز نمایش نمی‌دهد یا لاگ نمی‌کند. ارز صفحه‌ی تیپ را در StreamElements روی USD بگذار تا تبدیل به تومان و پله‌های مبلغ کار کنند؛ ارزهای دیگر فقط با مبلغ و کد ارز نمایش داده می‌شوند.</p>
+          <div class="row"><button class="btn danger" id="btnSeDisconnect"><svg><use href="#i-x"/></svg>قطع اتصال و حذف توکن</button></div>
         </div>
         <div class="card span-6">
           <h3><svg><use href="#i-gift"/></svg>ساب و ساب‌گیفت کیک<span class="chip" id="kStatus" style="margin-inline-start:auto"></span></h3>

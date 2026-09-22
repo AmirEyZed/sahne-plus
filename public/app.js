@@ -214,7 +214,58 @@ function renderKb() {
       : 'ذخیره شده (بدون رمزنگاری؛ DPAPI در دسترس نیست)'
     : 'وارد نشده';
   $('#btnDisconnect').disabled = !kb.configured;
+  renderSe();
 }
+const SE_TEXT = {
+  connected: ['متصل', 'chip on'],
+  connecting: ['در حال اتصال…', 'chip warn'],
+  reconnecting: ['قطع شده، تلاش مجدد…', 'chip warn'],
+  error: ['خطا', 'chip warn'],
+  unconfigured: ['تنظیم نشده', 'chip']
+};
+function renderSe() {
+  const se = (CFG && CFG.streamelements) || {};
+  const st = (STATE && STATE.se) || {};
+  const status = st.status || (se.configured ? 'reconnecting' : 'unconfigured');
+  const [txt, cls] = SE_TEXT[status] || SE_TEXT.unconfigured;
+  const label = status === 'error' && st.error ? 'خطا: ' + st.error : txt;
+  $('#seChip').textContent = label;
+  $('#seChip').className = cls;
+  $('#hSe').textContent = label;
+  $('#hSe').className = cls;
+  $('#hSeRow').hidden = !se.configured;
+  $('#stSe').hidden = !se.configured;
+  $('#stSe').className = 'status-pill' + (status === 'connected' ? ' on' : se.configured ? ' warn' : '');
+  $('#seAccount').textContent = se.configured
+    ? (se.username || '—') + (se.provider ? ' (' + se.provider + ')' : '')
+    : 'وصل نشده';
+  $('#seSecret').textContent = se.configured
+    ? se.secretStorage === 'os'
+      ? 'ذخیره شده (رمزنگاری‌شده با ویندوز)'
+      : 'ذخیره شده (بدون رمزنگاری؛ DPAPI در دسترس نیست)'
+    : 'وارد نشده';
+  $('#btnSeDisconnect').disabled = !se.configured;
+}
+$('#btnSeSetup').onclick = async () => {
+  const msg = $('#seMsg');
+  msg.textContent = 'در حال بررسی…';
+  const r = await post('/api/se/setup', { token: $('#seToken').value });
+  if (r.ok) {
+    $('#seToken').value = '';
+    toast('StreamElements وصل شد', 'ok');
+    msg.textContent = 'انجام شد: ' + (r.username || '') + (r.provider ? ' (' + r.provider + ')' : '');
+    load();
+  } else {
+    msg.textContent = r.error || 'خطا';
+    toast(r.error || 'خطا', 'err');
+  }
+};
+$('#btnSeDisconnect').onclick = async () => {
+  if (!confirm('اتصال StreamElements قطع و توکن حذف شود؟')) return;
+  await post('/api/se/disconnect');
+  toast('اتصال StreamElements حذف شد', 'ok');
+  load();
+};
 function fillSettings() {
   $('#ovUrl').value = 'http://localhost:' + (CFG.port || 7788) + '/overlay';
   $('#mode').value = CFG.mode;
@@ -915,6 +966,7 @@ function renderState() {
   $('#hKb').className = kbt[1];
   if (CFG) renderKb();
   if (CFG) renderKickStatus();
+  if (CFG) renderSe();
   $('#stOv').className = 'status-pill' + (s.overlays > 0 ? ' on' : ' warn');
   $('#stOvN').textContent = s.overlays;
   $('#hOv').textContent = s.overlays;
@@ -947,7 +999,7 @@ function renderState() {
   s.recent.forEach(t => {
     const d = document.createElement('div');
     d.className = 'it';
-    d.innerHTML = `<span class="a">${t.toman ? fmtToman(t.toman) : '$' + t.amount}</span><b>${esc(t.name || '')}</b>${t.kind === 'gift' ? '<span class="chip">🎁 ' + faNum(t.count) + ' ساب‌گیفت</span>' : t.kind === 'sub' ? '<span class="chip">⭐ ساب</span>' : ''}<span class="m">${esc(t.message || '')}</span><span class="chip">${t.media ? esc(t.media) : 'بدون فایل'}</span>${t.test ? '<span class="chip warn">تست</span>' : ''}`;
+    d.innerHTML = `<span class="a">${t.toman ? fmtToman(t.toman) : t.currency && t.currency !== 'USD' ? t.amount + ' ' + t.currency : '$' + t.amount}</span><b>${esc(t.name || '')}</b>${t.kind === 'gift' ? '<span class="chip">🎁 ' + faNum(t.count) + ' ساب‌گیفت</span>' : t.kind === 'sub' ? '<span class="chip">⭐ ساب</span>' : ''}<span class="m">${esc(t.message || '')}</span><span class="chip">${t.media ? esc(t.media) : 'بدون فایل'}</span>${t.test ? '<span class="chip warn">تست</span>' : ''}`;
     rc.appendChild(d);
   });
 }
