@@ -20,6 +20,8 @@ const {
   describeKickFailure,
   parseSeActivity,
   seTokenOk,
+  parseDonofaActivity,
+  donofaKeyOk,
   fxFromBaha24,
   fxFromBonbast,
   sanitizeFx
@@ -541,6 +543,160 @@ test('StreamElements: setup endpoint validates the token before any network call
   assert.equal((await req('POST', '/api/se/disconnect')).status, 200);
   const onDisk = JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8'));
   assert.ok(!onDisk.se_token && !onDisk.se_token_enc, 'nothing stored after disconnect');
+});
+
+test('Donofa: activity parsing and key validation', () => {
+  const tip = parseDonofaActivity({
+    id: 123456,
+    amount: 500000,
+    type: 'IRT',
+    currency: 'IRT',
+    name: 'حامی دونوفا <script>',
+    message: 'سلام استریمر <b>دمت گرم</b>',
+    tts_url: 'https://storage.donofa.ir/tts/123456.mp3',
+    created_at: '2026-09-23T10:00:00.000000Z'
+  });
+  assert.equal(tip.stripe_pi_id, 'donofa_123456');
+  assert.equal(tip.amount_total, 50000000);
+  assert.equal(tip.currency, 'IRT');
+  assert.equal(tip.toman_override, 500000);
+  assert.equal(tip.tipper_name, 'حامی دونوفا <script>', 'cleanText applied');
+  assert.equal(tip.tip_message, 'سلام استریمر <b>دمت گرم</b>', 'text kept as text');
+  assert.equal(tip.audio_url, 'https://storage.donofa.ir/tts/123456.mp3');
+  assert.equal(tip.source, 'donofa');
+  assert.equal(tip.approval_status, 'approved');
+  assert.ok(tip.is_local && !tip.is_test);
+
+  const testTip = parseDonofaActivity({ id: 99, amount: 25000, is_test: true });
+  assert.equal(testTip.is_test, true);
+
+  assert.equal(parseDonofaActivity({ amount: 50000 }), null, 'needs an id');
+  assert.equal(parseDonofaActivity({ id: 'x' }), null, 'needs an amount');
+  assert.equal(parseDonofaActivity({ id: 'x', amount: -500 }), null, 'needs positive amount');
+  assert.equal(parseDonofaActivity(null), null);
+
+  assert.ok(donofaKeyOk('AF5Ed2JK1234567890abcdef'));
+  assert.ok(!donofaKeyOk('short'));
+  assert.ok(!donofaKeyOk(''));
+  assert.ok(!donofaKeyOk(null));
+  assert.ok(!donofaKeyOk('bad spaces in key 1234567890'));
+});
+
+test('Donofa: setup and disconnect endpoints; state and config expose no key', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sahne-donofa-test-'));
+  const port = 8400 + Math.floor(Math.random() * 100);
+  fs.writeFileSync(
+    path.join(dir, 'config.json'),
+    JSON.stringify({
+      port,
+      rate: { auto: false },
+      kick: { enabled: false },
+      app: { autostart: false },
+      donofa_key: 'not valid with spaces!'
+    })
+  );
+  const srv = createServer({
+    dataDir: dir,
+    publicDir: path.join(__dirname, '..', 'public'),
+    appVersion: 'test',
+    testHooks: { offline: true }
+  });
+  await srv.start();
+  t.after(async () => {
+    await srv.stop();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  const req = (method, p, body) =>
+    new Promise((resolve, reject) => {
+      const r = http.request(
+        {
+          host: '127.0.0.1',
+          port,
+          path: p,
+          method,
+          headers: { 'Content-Type': 'application/json', Origin: `http://127.0.0.1:${port}` }
+        },
+        res => {
+          let d = '';
+          res.on('data', c => (d += c));
+          res.on('end', () => resolve({ status: res.statusCode, body: d }));
+        }
+      );
+      r.on('error', reject);
+      if (body) r.write(JSON.stringify(body));
+      r.end();
+    });
+  const cfg = JSON.parse((await req('GET', '/api/config')).body);
+  assert.equal(cfg.config.donofa.configured, false, 'a malformed stored key is discarded');
+  assert.equal(cfg.state.donofa.status, 'unconfigured');
+  assert.ok(!JSON.stringify(cfg).includes('donofa_key'), 'no key field reaches the UI');
+  assert.equal((await req('POST', '/api/donofa/setup', { key: 'short' })).status, 400);
+  assert.equal((await req('POST', '/api/donofa/setup', {})).status, 400);
+  const setupRes = await req('POST', '/api/donofa/setup', { key: 'AF5Ed2JK1234567890abcdef' });
+  assert.ok(setupRes.status === 400 || setupRes.status === 502);
+  assert.equal((await req('POST', '/api/donofa/disconnect')).status, 200);
+  const onDisk = JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8'));
+  assert.ok(!onDisk.donofa_key && !onDisk.donofa_key_enc, 'nothing stored after disconnect');
+});
+
+test('Donofa: native Toman tip plays with exact toman amount', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sahne-donofa-tier-'));
+  const port = 8500 + Math.floor(Math.random() * 100);
+  fs.writeFileSync(
+    path.join(dir, 'config.json'),
+    JSON.stringify({
+      port,
+      rate: { auto: false, manual: 100000 },
+      kick: { enabled: false },
+      app: { autostart: false }
+    })
+  );
+  const srv = createServer({
+    dataDir: dir,
+    publicDir: path.join(__dirname, '..', 'public'),
+    appVersion: 'test',
+    testHooks: { offline: true }
+  });
+  await srv.start();
+  const events = [];
+  let es = null;
+  t.after(async () => {
+    if (es) es.destroy();
+    await srv.stop();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  es = http.get({ host: '127.0.0.1', port, path: '/events?role=overlay' }, res => {
+    res.setEncoding('utf8');
+    res.on('data', c => events.push(c));
+  });
+  await new Promise(r => setTimeout(r, 150));
+  const donofaTip = parseDonofaActivity({
+    id: 555,
+    amount: 750000,
+    name: 'Donofa Tier Donor',
+    message: 'دمت گرم',
+    tts_url: 'https://storage.donofa.ir/tts/555.mp3'
+  });
+  srv.testHooks.injectTip(donofaTip);
+  await new Promise(r => setTimeout(r, 300));
+  const played = events
+    .join('')
+    .split('\n')
+    .filter(l => l.startsWith('data: ') && l.includes('"type":"play"'))
+    .map(l => JSON.parse(l.slice(6)).tip);
+  assert.equal(played.length, 1, 'the donofa tip played');
+  assert.equal(played[0].currency, 'IRT');
+  assert.equal(played[0].toman, 750000, 'toman matches directly without FX conversion');
+  assert.equal(played[0].tts_url, 'https://storage.donofa.ir/tts/555.mp3');
+  const cfgText = await new Promise(r =>
+    http.get({ host: '127.0.0.1', port, path: '/api/config' }, res => {
+      let d = '';
+      res.on('data', c => (d += c));
+      res.on('end', () => r(d));
+    })
+  );
+  assert.equal(JSON.parse(cfgText).state.recent[0].source, 'donofa');
+  assert.equal(JSON.parse(cfgText).state.recent[0].toman, 750000);
 });
 
 test('other currencies: rates are read from baha24 / bonbast and a StreamElements tip in euro gets a toman value (1.3.5)', async t => {

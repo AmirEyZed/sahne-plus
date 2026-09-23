@@ -78,6 +78,11 @@
     return fmtUsd(tip.amount);
   }
   function fmtAmount(tip) {
+    const isToman = tip.currency === 'IRT' || tip.currency === 'TMN' || tip.currency === 'TOMAN';
+    if (isToman && tip.toman != null) {
+      const c = A.currency || 'toman';
+      return fmtToman(tip.toman, c === 'toman-full');
+    }
     const foreign = !!(tip.currency && tip.currency !== 'USD');
     if (foreign && tip.toman == null) return fmtOrig(tip); // no rate for this currency: amount and code only
     const c = A.currency || 'toman';

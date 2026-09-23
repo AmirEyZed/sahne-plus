@@ -39,6 +39,8 @@ Endpoints (all under `http://127.0.0.1:7788`):
 | `/api/scan` | POST | controller | registers files already in the media folder |
 | `/api/setup` | POST | controller | the KickBot widget URL → parsed, secret kept in memory + encrypted store |
 | `/api/disconnect-kickbot` | POST | controller | wipes the secret and streamer id |
+| `/api/se/setup`, `/api/se/disconnect` | POST | controller | StreamElements token validation / disconnect |
+| `/api/donofa/setup`, `/api/donofa/disconnect` | POST | controller | Donofa API key validation (Iran / Global endpoint) / disconnect |
 | `/api/reset-settings` | POST | controller | defaults for appearance / rate / kick / mode |
 | `/api/test`, `/api/test-sub`, `/api/preview`, `/api/simulate` | POST / GET | controller | simulated events (see §7) |
 | `/api/rate`, `/api/meld-reload`, `/api/skip`, `/api/clear-queue`, `/api/open-media-folder`, `/api/logs` | POST / GET | controller | actions |
@@ -65,6 +67,8 @@ The Browser Source therefore has access to: the overlay page, static assets, med
 | 3.12 | `https://github.com/AmirEyZed/sahne-plus/releases/download/vX.Y.Z/SHA256SUMS.txt` and `…/Sahne-Plus-Setup-X.Y.Z.exe` (GitHub redirects to its release-asset storage) | HTTPS GET | **only after the user clicks «آپدیت»** | `User-Agent: SahnePlus/<version>` | the checksum file and the installer; the installer runs only if its SHA-256 matches | `electron/updater.js` `download()` |
 | 3.13 | `https://api.streamelements.com/kappa/v2/channels/me` | HTTPS GET | once, when a StreamElements token is entered (1.3.4+) | `Authorization: Bearer <JWT>` | channel id, username, provider | `/api/se/setup` |
 | 3.14 | `wss://astro.streamelements.com` | WebSocket | while a StreamElements account is connected; reconnects every 5–10 s | `subscribe` to `channel.activities` for the own channel with the JWT | activity events; only `tip` is used | `seConnect()`, `parseSeActivity()` |
+| 3.15 | `https://api.donofa.ir/api/v2/donates?limit=1` (or `.com`) | HTTPS GET | once, when a Donofa API key is entered or verified | `Authorization: Api <key>` | verify status / recent donates | `/api/donofa/setup` |
+| 3.16 | `wss://ws.donofa.com/app/AF5Ed2JK?protocol=7&client=js&version=8.5.0` | WebSocket | while a Donofa account is connected; reconnects every 5–10 s | Pusher protocol `pusher:subscribe` to `user.<api_key>` | `.donate.created` / `donate.created` events with donor name, amount (IRT), message, TTS audio | `donofaConnect()`, `parseDonofaActivity()` |
 | — | optional HTTP CONNECT proxy: `rate.proxy` (user-configured) and, since 1.3.1, the Windows system proxy (resolved by Electron, plain HTTP proxies only) | HTTP | 3.5 and 3.7 (proxies first, direct last); 3.7a only as a retry after a failed direct request | the destinations above pass through it | — | `httpsRequest()`, `routeOrder()` |
 
 Not present in the code: analytics, telemetry, crash reporting, advertising, silent or automatic installation of updates, any Sahne Plus server, Google Fonts (removed in 1.1.0; all fonts are bundled). Since 1.3.1 the only contact with GitHub at runtime is the update check (3.11) and, after a click, the update download (3.12).
@@ -92,6 +96,7 @@ Uninstalling removes the program folder and (by default) `%APPDATA%\SahnePlus`. 
 |---|---|---|---|
 | KickBot widget secret (`<32hex>:<32hex>`) | **SECRET / bearer-like** | memory; `config.json` as `secret_id_enc` (DPAPI) | possession lets anyone subscribe to the tipping channel, read the queue and call `capture_tip` for that streamer. Never logged (`safe()` redacts `secret_id`/`authorization`), never returned by any endpoint, masked in the UI, sent only to KickBot (3.1–3.4) |
 | StreamElements JWT (optional) | **SECRET / account-wide** | memory; `config.json` as `se_token_enc` (DPAPI) | it grants full API access to the StreamElements account; the app only subscribes to the activity feed with it |
+| Donofa API Key (optional) | **SECRET / account-wide** | memory; `config.json` as `donofa_key_enc` (safeStorage) | grants API access and connects to real-time Reverb WebSocket channel `user.<key>`. Masked in UI, redacted by `safe()` |
 | `streamer_id` | public identifier | config.json | numeric KickBot id |
 | Kick channel slug / chatroom id / channel id | public identifiers | config.json | public |
 | `rate.proxy` | medium (may embed proxy credentials if the user types them) | config.json plaintext | user-provided |
@@ -104,8 +109,8 @@ Uninstalling removes the program folder and (by default) `%APPDATA%\SahnePlus`. 
 - **NETWORK-PROCESSED**: the KickBot secret + streamer id (to KickBot), tip ids (to KickBot), Kick channel slug (to kick.com), nothing to anyone else.
 - **PERSISTENT**: config.json, media, played.json, log, Electron userData.
 - **TEMPORARY**: in-memory queues (`pending`, `approved`, capped at 500), last-30 recent list, in-memory log (300 lines), 15-second duplicate keys for Kick events.
-- **CREDENTIAL/SENSITIVE**: KickBot secret (encrypted), optional proxy URL.
-- **THIRD-PARTY DATA**: donor names/amounts/messages and TTS/GIF URLs from KickBot; subscriber/gifter usernames from Kick chat; exchange rate from Bonbast.
+- **CREDENTIAL/SENSITIVE**: KickBot secret (encrypted), optional proxy URL, StreamElements token (encrypted), Donofa API key (encrypted).
+- **THIRD-PARTY DATA**: donor names/amounts/messages and TTS/GIF URLs from KickBot; subscriber/gifter usernames from Kick chat; exchange rate from Bonbast / Baha24; activity from StreamElements; donations from Donofa.
 
 ## 7. Simulated events
 
@@ -115,4 +120,4 @@ Uninstalling removes the program folder and (by default) `%APPDATA%\SahnePlus`. 
 
 The sentence "no information leaves the computer" is **false** for this application and must not be used. Verified wording:
 
-> Sahne Plus has no cloud backend. Your alert media, settings and logs stay on your computer. The application connects only to the third-party services it needs to work: KickBot (donation events and payment capture), Kick's public chat feed (subscriptions), and bonbast.com (exchange rate). It contains no analytics, telemetry, crash reporting or advertising.
+> Sahne Plus has no cloud backend. Your alert media, settings and logs stay on your computer. The application connects only to the third-party services it needs to work: KickBot (donation events and payment capture), Kick's public chat feed (subscriptions), StreamElements / Donofa (when configured for donations), and bonbast.com / baha24.com (exchange rate). It contains no analytics, telemetry, crash reporting or advertising.
