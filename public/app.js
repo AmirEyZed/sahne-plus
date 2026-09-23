@@ -215,6 +215,7 @@ function renderKb() {
     : 'وارد نشده';
   $('#btnDisconnect').disabled = !kb.configured;
   renderSe();
+  renderDonofa();
 }
 const SE_TEXT = {
   connected: ['متصل', 'chip on'],
@@ -265,6 +266,83 @@ $('#btnSeDisconnect').onclick = async () => {
   await post('/api/se/disconnect');
   toast('اتصال StreamElements حذف شد', 'ok');
   load();
+};
+const DONOFA_TEXT = {
+  connected: ['متصل', 'chip on'],
+  connecting: ['در حال اتصال…', 'chip warn'],
+  reconnecting: ['قطع شده، تلاش مجدد…', 'chip warn'],
+  error: ['خطا', 'chip warn'],
+  unconfigured: ['تنظیم نشده', 'chip']
+};
+function renderDonofa() {
+  const donofa = (CFG && CFG.donofa) || {};
+  const st = (STATE && STATE.donofa) || {};
+  const status = st.status || (donofa.configured ? 'reconnecting' : 'unconfigured');
+  const [txt, cls] = DONOFA_TEXT[status] || DONOFA_TEXT.unconfigured;
+  const label = status === 'error' && st.error ? 'خطا: ' + st.error : txt;
+  const chip = $('#donofaChip');
+  if (chip) {
+    chip.textContent = label;
+    chip.className = cls;
+  }
+  const h = $('#hDonofa');
+  if (h) {
+    h.textContent = label;
+    h.className = cls;
+  }
+  const hRow = $('#hDonofaRow');
+  if (hRow) hRow.hidden = !donofa.configured;
+  const pill = $('#stDonofa');
+  if (pill) {
+    pill.hidden = !donofa.configured;
+    pill.className = 'status-pill' + (status === 'connected' ? ' on' : donofa.configured ? ' warn' : '');
+  }
+  const ep = $('#donofaEndpoint');
+  if (ep && document.activeElement !== ep) {
+    ep.value = donofa.endpoint || 'ir';
+  }
+  const sec = $('#donofaSecret');
+  if (sec) {
+    sec.textContent = donofa.configured
+      ? donofa.secretStorage === 'os'
+        ? 'ذخیره شده (رمزنگاری‌شده با سیستم‌عامل)'
+        : 'ذخیره شده (بدون رمزنگاری)'
+      : 'وارد نشده';
+  }
+  const btnDisc = $('#btnDonofaDisconnect');
+  if (btnDisc) btnDisc.disabled = !donofa.configured;
+}
+$('#btnDonofaSetup').onclick = async () => {
+  const msg = $('#donofaMsg');
+  const key = ($('#donofaKey').value || '').trim();
+  const endpoint = $('#donofaEndpoint').value;
+  if (!key) {
+    msg.textContent = 'لطفاً کلید API را وارد کنید';
+    return;
+  }
+  msg.textContent = 'در حال بررسی اتصال…';
+  const r = await post('/api/donofa/setup', { key, endpoint });
+  if (r.ok) {
+    $('#donofaKey').value = '';
+    toast('دونوفا وصل شد', 'ok');
+    msg.textContent = 'انجام شد؛ آماده دریافت دونیت';
+    load();
+  } else {
+    msg.textContent = r.error || 'خطا در برقراری ارتباط';
+    toast(r.error || 'خطا', 'err');
+  }
+};
+$('#btnDonofaDisconnect').onclick = async () => {
+  if (!confirm('اتصال دونوفا قطع و کلید API حذف شود؟ دونیت‌ها تا اتصال مجدد دریافت نمی‌شوند.')) return;
+  await post('/api/donofa/disconnect');
+  toast('اتصال دونوفا حذف شد', 'ok');
+  load();
+};
+$('#donofaEndpoint').onchange = async () => {
+  if (CFG && CFG.donofa && CFG.donofa.configured) {
+    await post('/api/config', { donofa: { endpoint: $('#donofaEndpoint').value } });
+    load();
+  }
 };
 function fillSettings() {
   $('#ovUrl').value = 'http://localhost:' + (CFG.port || 7788) + '/overlay';
@@ -967,6 +1045,7 @@ function renderState() {
   if (CFG) renderKb();
   if (CFG) renderKickStatus();
   if (CFG) renderSe();
+  if (CFG) renderDonofa();
   $('#stOv').className = 'status-pill' + (s.overlays > 0 ? ' on' : ' warn');
   $('#stOvN').textContent = s.overlays;
   $('#hOv').textContent = s.overlays;

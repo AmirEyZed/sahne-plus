@@ -95,6 +95,7 @@ const DEFAULT_CONFIG = {
     showNewSubs: true
   },
   se: { channelId: null, username: null, provider: null }, // StreamElements account (the JWT token is stored separately, encrypted)
+  donofa: { endpoint: 'ir' }, // Donofa account (API key is stored separately, encrypted)
   app: { autostart: true, updateCheck: true, updateNotifiedFor: null }
 };
 const FONTS = ['Vazirmatn', 'Estedad', 'Lalezar', 'Inter', 'Poppins', 'Segoe UI', 'Tahoma'];
@@ -269,6 +270,44 @@ function seTokenOk(t) {
   } catch {
     return false;
   }
+}
+
+// Donofa ".donate.created" activity message -> a queue entry, or null when it is not a valid tip.
+// Amounts in Donofa are in Iranian Toman (IRT). Tips are already paid on Donofa's side (status === 'paid'),
+// so they enter the queue like local events without a capture step.
+function parseDonofaActivity(a) {
+  if (!a || typeof a !== 'object') return null;
+  const d = a.data && typeof a.data === 'object' && a.data.id ? a.data : a;
+  const idRaw = String(d.id || '')
+    .replace(/[^A-Za-z0-9_-]/g, '')
+    .slice(0, 64);
+  if (!idRaw) return null;
+  const amount = finite(d.amount, 0, 1e12, 0);
+  if (amount <= 0) return null;
+  const currency = /^[A-Za-z]{3}$/.test(String(d.currency || '')) ? String(d.currency).toUpperCase() : 'IRT';
+  const addons = d.addons && typeof d.addons === 'object' ? d.addons : {};
+  const audioUrl = httpsUrl(d.voice_url || d.audio_url || d.tts_url || addons.voice_url || addons.tts_url || null);
+  return {
+    stripe_pi_id: 'donofa_' + idRaw,
+    tipper_name: cleanText(d.name || d.username || d.displayName, LIMITS.name) || 'ناشناس',
+    tip_message: cleanText(d.message, LIMITS.message),
+    amount_total: Math.round(amount * 100),
+    currency,
+    approval_status: 'approved',
+    is_local: true,
+    is_test: !!(d.is_test || d.test || d.isMock || d.mock),
+    kind: 'tip',
+    count: null,
+    tags: [],
+    toman_override: amount,
+    source: 'donofa',
+    audio_url: audioUrl,
+    created_at: typeof d.created_at === 'string' ? d.created_at : new Date().toISOString()
+  };
+}
+function donofaKeyOk(k) {
+  const s = String(k || '').trim();
+  return s.length >= 8 && s.length <= 256 && /^[A-Za-z0-9_.-]+$/.test(s);
 }
 
 // Other currencies a StreamElements tipping page may use, converted to toman with the sell rates that baha24
@@ -450,6 +489,7 @@ function createServer(opts) {
   // The KickBot secret never lives in `config` (and therefore never in config.json in plaintext when the OS store is available).
   let secret = ''; // in-memory only
   let seToken = ''; // StreamElements JWT, in-memory only
+  let donofaKey = ''; // Donofa API key, in-memory only
   let secretStorage = 'none'; // 'os' (DPAPI via Electron safeStorage) | 'plain' (fallback) | 'none'
   let config = loadConfig();
   function loadConfig() {
@@ -475,6 +515,7 @@ function createServer(opts) {
       rate: { ...DEFAULT_CONFIG.rate, ...(c.rate || {}) },
       kick: { ...DEFAULT_CONFIG.kick, ...(c.kick || {}) },
       se: { ...DEFAULT_CONFIG.se, ...(c.se || {}) },
+      donofa: { ...DEFAULT_CONFIG.donofa, ...(c.donofa || {}) },
       app: { ...DEFAULT_CONFIG.app, ...(c.app || {}) }
     };
     merged.app.updateCheck = merged.app.updateCheck !== false;
@@ -505,6 +546,17 @@ function createServer(opts) {
     delete merged.se_token;
     delete merged.se_token_enc;
     if (!/^[A-Za-z0-9]{1,64}$/.test(String(merged.se.channelId || ''))) merged.se.channelId = null;
+    if (!['ir', 'com'].includes(merged.donofa.endpoint)) merged.donofa.endpoint = 'ir';
+    if (c.donofa_key_enc && store && store.available()) {
+      try {
+        donofaKey = String(store.decrypt(c.donofa_key_enc) || '');
+      } catch {
+        donofaKey = '';
+      }
+    } else if (typeof c.donofa_key === 'string' && c.donofa_key) donofaKey = c.donofa_key;
+    if (!donofaKeyOk(donofaKey)) donofaKey = '';
+    delete merged.donofa_key;
+    delete merged.donofa_key_enc;
     if (!Array.isArray(merged.files)) merged.files = [];
     merged.files = merged.files.map(sanitizeFile).filter(Boolean).slice(0, LIMITS.files);
     if (merged.rate.proxy == null)
@@ -544,6 +596,18 @@ function createServer(opts) {
       if (enc) out.se_token_enc = enc;
       else out.se_token = seToken;
     }
+    if (donofaKey) {
+      let enc = null;
+      if (store && store.available()) {
+        try {
+          enc = store.encrypt(donofaKey);
+        } catch {
+          enc = null;
+        }
+      }
+      if (enc) out.donofa_key_enc = enc;
+      else out.donofa_key = donofaKey;
+    }
     return out;
   }
   function saveConfig() {
@@ -564,6 +628,11 @@ function createServer(opts) {
         configured: !!(seToken && config.se.channelId),
         username: config.se.username,
         provider: config.se.provider,
+        secretStorage
+      },
+      donofa: {
+        configured: !!donofaKey,
+        endpoint: (config.donofa && config.donofa.endpoint) || 'ir',
         secretStorage
       }
     };
@@ -669,7 +738,18 @@ function createServer(opts) {
     try {
       return JSON.parse(
         JSON.stringify(v, (k, val) =>
-          ['secret_id', 'authorization', 'secret_id_enc', 'se_token', 'se_token_enc', 'token'].includes(k)
+          [
+            'secret_id',
+            'authorization',
+            'secret_id_enc',
+            'se_token',
+            'se_token_enc',
+            'token',
+            'donofa_key',
+            'donofa_key_enc',
+            'apiKey',
+            'api_key'
+          ].includes(k)
             ? '[redacted]'
             : val
         )
@@ -731,6 +811,7 @@ function createServer(opts) {
         hint: kickState.hint
       },
       se: sePublic(),
+      donofa: donofaPublic(),
       rate: currentRate(),
       rateUpdatedAt: config.rate.updatedAt,
       rateManual: Number(config.rate.manual) > 0,
@@ -1635,6 +1716,167 @@ function createServer(opts) {
     }
   }
 
+  // ---------- Donofa (donofa.com): tips from the streamer's Donofa account. ----------
+  // Real-time alerts over Laravel Reverb / Pusher protocol: wss://ws.donofa.com/app/AF5Ed2JK
+  // Subscribes to channel `user.<API_KEY>`, listens for `.donate.created` and `.tts.created`.
+  const DONOFA_WS = 'wss://ws.donofa.com/app/AF5Ed2JK?protocol=7&client=js&version=8.5.0';
+  const DONOFA_API_IR = 'https://api.donofa.ir';
+  const DONOFA_API_COM = 'https://api.donofa.com';
+  let donofaws = null,
+    donofaReconnectTimer = null,
+    donofaPing = null,
+    donofaSubscribed = false,
+    donofaError = null;
+  const donofaConfigured = () => !!donofaKey;
+  function donofaStatus() {
+    if (!donofaConfigured()) return 'unconfigured';
+    if (donofaError) return 'error';
+    if (donofaws && donofaws.readyState === 1 && donofaSubscribed) return 'connected';
+    if (donofaws && (donofaws.readyState === 0 || donofaws.readyState === 1)) return 'connecting';
+    return 'reconnecting';
+  }
+  function donofaPublic() {
+    return {
+      configured: donofaConfigured(),
+      status: donofaStatus(),
+      endpoint: (config.donofa && config.donofa.endpoint) || 'ir',
+      error: donofaError
+    };
+  }
+  function donofaScheduleReconnect(ms) {
+    clearTimeout(donofaReconnectTimer);
+    if (!stopped && donofaConfigured()) donofaReconnectTimer = setTimeout(donofaConnect, ms || 5000);
+  }
+  function donofaConnect() {
+    if (stopped || !NODE_OK || !donofaConfigured()) return;
+    if (donofaws && (donofaws.readyState === 0 || donofaws.readyState === 1)) return;
+    donofaSubscribed = false;
+    let sock;
+    try {
+      sock = new WebSocket(DONOFA_WS);
+    } catch (e) {
+      log('error', 'Donofa: WebSocket create failed', e.message);
+      return donofaScheduleReconnect();
+    }
+    donofaws = sock;
+    const connTimeout = setTimeout(() => {
+      if (sock.readyState === 0) {
+        try {
+          sock.close();
+        } catch {}
+      }
+    }, 15000);
+    sock.onopen = () => clearTimeout(connTimeout);
+    sock.onmessage = ev => {
+      let m;
+      try {
+        m = JSON.parse(ev.data);
+      } catch {
+        return;
+      }
+      if (!m || typeof m !== 'object') return;
+      if (m.event === 'pusher:connection_established') {
+        sock.send(
+          JSON.stringify({
+            event: 'pusher:subscribe',
+            data: { channel: 'user.' + donofaKey }
+          })
+        );
+        donofaSubscribed = true;
+        donofaError = null;
+        log('info', 'به دونوفا وصل شد (Donofa)');
+        clearInterval(donofaPing);
+        donofaPing = setInterval(() => {
+          try {
+            sock.send(JSON.stringify({ event: 'pusher:ping', data: {} }));
+          } catch {}
+        }, 30000);
+        sendState();
+      } else if (m.event === 'pusher:subscription_succeeded') {
+        donofaSubscribed = true;
+        sendState();
+      } else if (m.event === 'pusher:ping') {
+        try {
+          sock.send(JSON.stringify({ event: 'pusher:pong', data: {} }));
+        } catch {}
+      } else if (m.event === 'pusher:error') {
+        const msg = String((m.data && m.data.message) || m.data || '').slice(0, 160);
+        log('warn', 'Donofa pusher error', msg);
+      } else if (m.event === 'donate.created' || m.event === '.donate.created') {
+        let d = {};
+        try {
+          d = typeof m.data === 'string' ? JSON.parse(m.data) : m.data;
+        } catch {}
+        handleDonofaActivity(d);
+      } else if (m.event === 'tts.created' || m.event === '.tts.created') {
+        let d = {};
+        try {
+          d = typeof m.data === 'string' ? JSON.parse(m.data) : m.data;
+        } catch {}
+        if (d && d.url && typeof d.url === 'string') {
+          const url = httpsUrl(d.url);
+          if (url) {
+            if (playing && playing.source === 'donofa' && !playing.audio_url) {
+              playing.audio_url = url;
+            }
+            const pend = approved.find(t => t.source === 'donofa' && !t.audio_url);
+            if (pend) pend.audio_url = url;
+          }
+        }
+      }
+    };
+    sock.onerror = () => {};
+    sock.onclose = ev => {
+      clearTimeout(connTimeout);
+      clearInterval(donofaPing);
+      if (donofaws === sock) donofaws = null;
+      const was = donofaSubscribed;
+      donofaSubscribed = false;
+      if (was && donofaConfigured() && !stopped) log('warn', 'اتصال دونوفا قطع شد، تلاش مجدد', { code: ev.code });
+      sendState();
+      if (!donofaError) donofaScheduleReconnect(5000);
+    };
+  }
+  timers.push(
+    setInterval(() => {
+      if (donofaConfigured() && !donofaError && (!donofaws || donofaws.readyState === 3)) donofaConnect();
+    }, 10000)
+  );
+  function handleDonofaActivity(d) {
+    const t = parseDonofaActivity(d);
+    if (!t) {
+      log('info', 'دونوفا: رویداد نادیده گرفته شد');
+      return;
+    }
+    if (
+      playedIds.has(t.stripe_pi_id) ||
+      approved.some(x => x.stripe_pi_id === t.stripe_pi_id) ||
+      (playing && playing.stripe_pi_id === t.stripe_pi_id)
+    )
+      return;
+    log('info', 'دونیت دونوفا (Donofa)', tipSummary(t));
+    if (config.mode === 'companion') showTip(t);
+    else {
+      approved.push(t);
+      tryNext();
+    }
+    sendState();
+  }
+  function donofaDisconnect() {
+    donofaKey = '';
+    config.donofa = { ...DEFAULT_CONFIG.donofa };
+    donofaError = null;
+    donofaSubscribed = false;
+    clearTimeout(donofaReconnectTimer);
+    clearInterval(donofaPing);
+    if (donofaws) {
+      try {
+        donofaws.close();
+      } catch {}
+      donofaws = null;
+    }
+  }
+
   function kickConnect() {
     if (!NODE_OK || !config.kick.enabled || !config.kick.chatroomId) return;
     if (kws && (kws.readyState === 0 || kws.readyState === 1)) return;
@@ -2190,6 +2432,10 @@ function createServer(opts) {
         }
         if (body.mode && ENUMS.mode.includes(body.mode)) config.mode = body.mode;
         if (typeof body.showAlertWithoutMedia === 'boolean') config.showAlertWithoutMedia = body.showAlertWithoutMedia;
+        if (body.donofa && typeof body.donofa === 'object') {
+          const ep = body.donofa.endpoint === 'com' ? 'com' : body.donofa.endpoint === 'ir' ? 'ir' : null;
+          if (ep) config.donofa = { ...(config.donofa || {}), endpoint: ep };
+        }
         if (body.app && typeof body.app === 'object')
           config.app = {
             ...config.app,
@@ -2531,6 +2777,67 @@ function createServer(opts) {
         sendState();
         return json(res, 200, { ok: true });
       }
+      if (p === '/api/donofa/setup' && req.method === 'POST') {
+        const body = await readJson(req);
+        const key = String(body.key || '').trim();
+        const endpoint = body.endpoint === 'com' ? 'com' : 'ir';
+        if (!donofaKeyOk(key))
+          return json(res, 400, {
+            error: 'کلید API نامعتبر است. کلید را از داشبورد دونوفا کپی کنید'
+          });
+        const baseUrl = endpoint === 'com' ? DONOFA_API_COM : DONOFA_API_IR;
+        const testUrl = baseUrl + '/api/v2/donates?limit=1';
+        let verified = false,
+          lastErr = null;
+        for (const px of await routesFor(testUrl, true)) {
+          try {
+            const r = await httpsRequest(
+              testUrl,
+              {
+                headers: { Authorization: 'Api ' + key, Accept: 'application/json', 'User-Agent': UA },
+                proxy: px
+              },
+              15000
+            );
+            if (r.status === 401 || r.status === 403) {
+              lastErr = new Error('rejected');
+              break;
+            }
+            if (r.status !== 200) throw new Error('HTTP ' + r.status);
+            verified = true;
+            break;
+          } catch (e) {
+            lastErr = e;
+          }
+        }
+        if (!verified) {
+          const rejected = lastErr && lastErr.message === 'rejected';
+          return json(res, rejected ? 400 : 502, {
+            error: rejected
+              ? 'دونوفا این کلید API را قبول نکرد؛ مطمئن شوید کلید کامل و معتبر است'
+              : 'اتصال به دونوفا ممکن نشد: ' + (lastErr ? lastErr.message : 'unknown')
+          });
+        }
+        donofaDisconnect();
+        donofaKey = key;
+        config.donofa = { endpoint };
+        saveConfig();
+        log('info', 'حساب دونوفا وصل شد', {
+          endpoint,
+          secretStorage
+        });
+        donofaConnect();
+        sendState();
+        return json(res, 200, { ok: true, endpoint, secretStorage });
+      }
+      if (p === '/api/donofa/disconnect' && req.method === 'POST') {
+        donofaDisconnect();
+        approved = approved.filter(t => t.source !== 'donofa');
+        saveConfig();
+        log('info', 'اتصال دونوفا حذف شد');
+        sendState();
+        return json(res, 200, { ok: true });
+      }
       if (p === '/api/disconnect-kickbot' && req.method === 'POST') {
         secret = '';
         config.streamer_id = null;
@@ -2625,11 +2932,12 @@ function createServer(opts) {
           data: DATA,
           secretStorage
         });
-        if ((secret || seToken) && secretStorage === 'os') saveConfig(); // migrates a legacy plaintext secret/token into the encrypted fields
+        if ((secret || seToken || donofaKey) && secretStorage === 'os') saveConfig(); // migrates a legacy plaintext secret/token into the encrypted fields
         if (!(opts.testHooks && opts.testHooks.offline)) {
           // tests run fully offline
           connect();
           seConnect();
+          donofaConnect();
           refreshRate(false);
           scheduleRate();
           if (config.kick.enabled && config.kick.channel)
@@ -2648,10 +2956,15 @@ function createServer(opts) {
     clearInterval(rateTimer);
     clearInterval(pulseTimer);
     clearInterval(kickPing);
+    clearInterval(donofaPing);
     clearTimeout(reconnectTimer);
     clearTimeout(seReconnectTimer);
+    clearTimeout(donofaReconnectTimer);
     try {
       if (sews) sews.close();
+    } catch {}
+    try {
+      if (donofaws) donofaws.close();
     } catch {}
     clearTimeout(nextTimer);
     clearTimeout(playTimeout);
@@ -2745,6 +3058,8 @@ module.exports = {
   describeKickFailure,
   parseSeActivity,
   seTokenOk,
+  parseDonofaActivity,
+  donofaKeyOk,
   fxFromBaha24,
   fxFromBonbast,
   sanitizeFx,

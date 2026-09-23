@@ -334,6 +334,10 @@ console.log('OK: local image alerts render; foreign image hosts refused');
     cardText({ amount: 7, currency: 'USD', toman: 1600000 }).includes('7$ = 1,600,000 Toman'),
     'dollar unchanged'
   );
+  assert.ok(
+    cardText({ amount: 500000, currency: 'IRT', toman: 500000 }).includes('500 هزار تومان'),
+    'native Toman formatting directly'
+  );
   console.log('OK: other currencies on the card');
   process.exit(0);
 })().catch(e => {

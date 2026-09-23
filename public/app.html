@@ -69,6 +69,7 @@
       <div class="status-pill" id="stKb"><span class="dot"></span>کیک‌بات (دونیت)</div>
       <div class="status-pill" id="stKick"><span class="dot"></span>چت کیک (ساب)</div>
       <div class="status-pill" id="stSe" hidden><span class="dot"></span>StreamElements</div>
+      <div class="status-pill" id="stDonofa" hidden><span class="dot"></span>دونوفا</div>
       <div class="status-pill" id="stOv"><span class="dot"></span>Browser Source<span class="v num" id="stOvN">0</span></div>
     </div>
     <button class="exit" id="btnExit"><svg><use href="#i-power"/></svg>خروج</button>
@@ -95,6 +96,7 @@
           <div class="kv"><b>کیک‌بات (دونیت)</b><span class="chip" id="hKb">—</span></div>
           <div class="kv"><b>چت کیک (ساب / ساب‌گیفت)</b><span class="chip" id="hKick">—</span></div>
           <div class="kv" id="hSeRow" hidden><b>StreamElements (دونیت)</b><span class="chip" id="hSe">—</span></div>
+          <div class="kv" id="hDonofaRow" hidden><b>دونوفا (دونیت)</b><span class="chip" id="hDonofa">—</span></div>
           <div class="kv"><b>Browser Source متصل</b><span class="num" id="hOv">0</span></div>
           <div class="kv"><b>حالت کار</b><span id="hMode">—</span></div>
           <div class="kv"><b>نرخ دلار</b><span class="row" style="gap:8px"><span class="pill-num" id="hRate">—</span><span class="hint" style="margin:0" id="hRateMeta"></span><button class="btn sm icon" id="hRateBtn" title="به‌روزرسانی الان"><svg><use href="#i-refresh"/></svg></button></span></div>
@@ -270,6 +272,15 @@
           <div class="field" style="margin:10px 0"><label>توکن JWT</label><div class="url"><input type="password" id="seToken" placeholder="eyJ…" autocomplete="off"><button class="btn primary" id="btnSeSetup">اتصال</button></div><p class="hint" id="seMsg" style="margin-top:6px"></p></div>
           <p class="hint">این توکن به کل حساب StreamElements دسترسی دارد؛ به کسی نده. برنامه آن را رمزنگاری‌شده ذخیره می‌کند و هرگز نمایش نمی‌دهد یا لاگ نمی‌کند. دونیت به دلار، یورو، پوند، درهم، لیر و ارزهای رایج دیگر با نرخ روز به تومان تبدیل می‌شود و همان پله‌ها را دارد؛ ارزی که نرخش را نداریم فقط با مبلغ و کد ارز نمایش داده می‌شود.</p>
           <div class="row"><button class="btn danger" id="btnSeDisconnect"><svg><use href="#i-x"/></svg>قطع اتصال و حذف توکن</button></div>
+        </div>
+        <div class="card span-6">
+          <h3><svg><use href="#i-link"/></svg>دونوفا — Donofa (دونیت)<span class="chip" id="donofaChip" style="margin-inline-start:auto">—</span></h3>
+          <p class="hint" style="margin:0 0 10px">اگر از دونوفا برای دریافت حمایت مالی استفاده می‌کنی، کلید API خود را اینجا وارد کن (داشبورد دونوفا). دونیت‌ها مستقیماً بر اساس تومان وارد صف می‌شوند و با همان فایل‌ها و پله‌های تومانی پخش می‌شوند.</p>
+          <div class="field" style="margin-bottom:10px"><label>سرور اتصال</label><select id="donofaEndpoint"><option value="ir">ایران (api.donofa.ir — پیشنهادی داخل ایران)</option><option value="com">بین‌الملل (api.donofa.com)</option></select></div>
+          <div class="kv"><b>کلید API</b><span id="donofaSecret" class="hint" style="margin:0">—</span></div>
+          <div class="field" style="margin:10px 0"><label>کلید API دونوفا</label><div class="url"><input type="password" id="donofaKey" placeholder="کلید API دونوفا…" autocomplete="off"><button class="btn primary" id="btnDonofaSetup">اتصال</button></div><p class="hint" id="donofaMsg" style="margin-top:6px"></p></div>
+          <p class="hint">کلید API به‌صورت رمزنگاری‌شده ذخیره می‌شود و هرگز نمایش داده یا لاگ نمی‌شود. مبالغ ارسالی دونوفا به تومان است و مستقیماً روی پله‌های فایل‌ها اعمال می‌شود.</p>
+          <div class="row"><button class="btn danger" id="btnDonofaDisconnect"><svg><use href="#i-x"/></svg>قطع اتصال و حذف کلید</button></div>
         </div>
         <div class="card span-6">
           <h3><svg><use href="#i-gift"/></svg>ساب و ساب‌گیفت کیک<span class="chip" id="kStatus" style="margin-inline-start:auto"></span></h3>
