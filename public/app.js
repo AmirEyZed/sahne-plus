@@ -82,6 +82,7 @@ function goPage(name) {
   moveCapsule($(`.nav button[data-page="${name}"]`));
   if (name === 'look') setTimeout(fitPreview, 30);
   if (name === 'home') loadSim();
+  if (name === 'analytics' && window.ANALYTICS) window.ANALYTICS.open();
   if (name === 'about' && !$('#docView').textContent) showDoc('PRIVACY.md');
   if (name !== 'files') closeInspector();
   try {
@@ -1062,6 +1063,7 @@ function connectEvents() {
   const es = new EventSource('/events?role=admin');
   es.onmessage = ev => {
     const d = JSON.parse(ev.data);
+    if (window.ANALYTICS) window.ANALYTICS.onEvent(d); // the analytics page listens to state/log, handled below too
     if (d.type === 'state') {
       STATE = d.state;
       renderState();

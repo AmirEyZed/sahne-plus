@@ -39,6 +39,8 @@
   <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 20V4M4 20h16"/><path d="m7 15 4-5 3 3 5-6"/></symbol>
   <symbol id="i-queue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h8"/><path d="m17 15 2 2 3-3"/></symbol>
   <symbol id="i-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20v-1.5A5.5 5.5 0 0 1 8.5 13h1A5.5 5.5 0 0 1 15 18.5V20"/><path d="M16 5.6a3.2 3.2 0 0 1 0 5.3M17.5 13.4A5.5 5.5 0 0 1 21 18.5V20"/></symbol>
 </svg>
 
 <div class="chrome" id="chrome">
@@ -63,6 +65,7 @@
       <button data-page="look"><svg><use href="#i-look"/></svg>ظاهر الرت</button>
       <button data-page="settings"><svg><use href="#i-settings"/></svg>تنظیمات</button>
       <button data-page="logs"><svg><use href="#i-logs"/></svg>لاگ</button>
+      <button data-page="analytics"><svg><use href="#i-chart"/></svg>آمار</button>
       <button data-page="about"><svg><use href="#i-info"/></svg>درباره</button>
     </nav>
     <div class="rail-status">
@@ -342,6 +345,40 @@
       </div>
       <div class="log" id="log"></div>
     </section>
+
+    <!-- ANALYTICS -->
+    <section class="page" data-page="analytics">
+      <div class="page-head">
+        <div><h2>آمار</h2><p>دونیت‌های ضبط‌شده‌ی همین کامپیوتر؛ مبلغ دلاری و معادل تومانی با نرخ همین لحظه.</p></div>
+        <div class="actions">
+          <div class="seg" id="anRange">
+            <button data-range="today" class="active">امروز</button>
+            <button data-range="week">این هفته</button>
+            <button data-range="month">این ماه</button>
+            <button data-range="custom">بازه‌ی دلخواه</button>
+          </div>
+          <button class="btn icon" id="anRefresh" title="به‌روزرسانی"><svg><use href="#i-refresh"/></svg></button>
+        </div>
+      </div>
+
+      <div class="card" id="anCustom" hidden style="margin-bottom:14px">
+        <div class="grid" style="grid-template-columns:1fr 1fr auto">
+          <div class="field"><label>از تاریخ</label><input type="date" id="anFrom" class="ltr"></div>
+          <div class="field"><label>تا تاریخ</label><input type="date" id="anTo" class="ltr"></div>
+          <div class="field"><label>&nbsp;</label><button class="btn primary" id="anApply"><svg><use href="#i-check"/></svg>اعمال بازه</button></div>
+        </div>
+      </div>
+
+      <div class="an-meta">
+        <span class="hint" id="anRangeLabel" style="margin:0"></span>
+        <span class="grow"></span>
+        <span class="hint" id="anUpdated" style="margin:0"></span>
+      </div>
+
+      <div id="anBody">
+        <div class="empty" id="anLoading">در حال محاسبه…</div>
+      </div>
+    </section>
   </main>
 
   <aside class="inspector" id="inspector" hidden>
@@ -365,5 +402,6 @@
 </div>
 <div class="toast" id="toast"></div>
 <script src="/app.js"></script>
+<script src="./analytics-ui.js"></script>
 </body>
 </html>

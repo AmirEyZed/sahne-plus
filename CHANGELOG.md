@@ -2,6 +2,11 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
+## 1.4.0 — unreleased
+
+- New: **آمار (Analytics)** page. From the moment this version is installed, every donation that enters the queue is recorded locally (id, time, donor, amount + currency, toman value and rate at that instant, kind, source, whether the alert played) and the page aggregates it: totals in dollar and toman, count, average, median, largest, smallest, unique / repeat / new / returning donors, daily and hourly activity, top donors, amount buckets, per-kind and per-source breakdown, and a weekday × hour heatmap (hidden while the sample is too small to mean anything). Ranges: today, this week (Saturday-anchored), this month (Persian calendar), or a custom span. Toman values are the ones recorded at donation time, not today's rate — the page says so explicitly. History is bounded: one file per month, at most 5000 events a day, months older than the newest three collapsed into a monthly summary.
+- New: `/api/analytics` (read-only) and `analytics-ui.js`. The page is computed entirely on this computer from the app's own data; nothing leaves it. See PRIVACY.md and docs/DATA_FLOW.md.
+
 ## 1.3.3 — 2026-09-22
 
 - Hardening: the installed app ignores Chromium's remote-debugging switches (`--remote-debugging-port`, `--remote-debugging-pipe`, `--remote-debugging-address`), so it can no longer be started with the DevTools protocol open; the ignored switch is noted in the log. Development runs (`electron .`) are unchanged. Defence in depth — starting the app with arguments already requires access to the Windows account.
