@@ -2534,8 +2534,9 @@ function createServer(opts) {
       if (p === '/api/disconnect-kickbot' && req.method === 'POST') {
         secret = '';
         config.streamer_id = null;
-        pending = [];
-        approved = [];
+        // drop only KickBot's tips; Kick subs, StreamElements tips and test alerts stay queued (same rule as the queue sync)
+        pending = pending.filter(t => t.is_test || t.is_local);
+        approved = approved.filter(t => t.is_test || t.is_local);
         saveConfig();
         if (ws) {
           try {
@@ -2701,6 +2702,7 @@ function createServer(opts) {
           tryNext();
         },
         queueLength: () => approved.length,
+        queueIds: () => approved.map(t => t.stripe_pi_id),
         isPlayed: id => playedIds.has(id)
       }
     : undefined;
