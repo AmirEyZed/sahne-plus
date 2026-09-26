@@ -9,16 +9,17 @@
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/server.test.js test/update.test.js && node test/overlay-xss.test.js",
+    "test": "node --test test/server.test.js test/update.test.js test/analytics.test.js && node test/overlay-xss.test.js",
     "icons": "electron scripts/render-icons.js",
     "screenshots": "electron scripts/capture-pages.js",
     "dist": "electron-builder --win --x64 --publish never",
+    "dist:linux": "electron-builder --linux --x64 --publish never",
     "dist:dir": "electron-builder --win --x64 --dir --publish never",
     "format": "prettier --write \"server/*.js\" \"public/*.js\" \"electron/*.js\" \"test/*.js\" \"scripts/*.js\"",
     "format:check": "prettier --check \"server/*.js\" \"public/*.js\" \"electron/*.js\" \"test/*.js\" \"scripts/*.js\""
   },
   "devDependencies": {
-    "electron": "43.7.3",
+    "electron": "^44.4.5",
     "electron-builder": "^26.0.12",
     "prettier": "3.9.8"
   },

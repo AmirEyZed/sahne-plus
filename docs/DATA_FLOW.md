@@ -42,6 +42,7 @@ Endpoints (all under `http://127.0.0.1:7788`):
 | `/api/reset-settings` | POST | controller | defaults for appearance / rate / kick / mode |
 | `/api/test`, `/api/test-sub`, `/api/preview`, `/api/simulate` | POST / GET | controller | simulated events (see §7) |
 | `/api/rate`, `/api/meld-reload`, `/api/skip`, `/api/clear-queue`, `/api/open-media-folder`, `/api/logs` | POST / GET | controller | actions |
+| `/api/analytics` | GET | controller | read-only aggregation of the recorded donation history (`range=today\|week\|month\|custom`, `from`/`to`, `tz` = minutes east of UTC, `includeTests=1`). Computed by `server/analytics.js` from `analytics-*.ndjson`; never mutates anything |
 | `/api/done` | POST | Browser Source | `{id}` — tells the queue the alert finished |
 
 The Browser Source therefore has access to: the overlay page, static assets, media files, the overlay SSE feed and `/api/done`. It can also technically reach the controller endpoints (same origin), which is inherent to a loopback web UI; the controller endpoints are protected against *other* origins, not against the overlay page itself. No secret is retrievable from any endpoint.
@@ -67,7 +68,7 @@ The Browser Source therefore has access to: the overlay page, static assets, med
 | 3.14 | `wss://astro.streamelements.com` | WebSocket | while a StreamElements account is connected; reconnects every 5–10 s | `subscribe` to `channel.activities` for the own channel with the JWT | activity events; only `tip` is used | `seConnect()`, `parseSeActivity()` |
 | — | optional HTTP CONNECT proxy: `rate.proxy` (user-configured) and, since 1.3.1, the Windows system proxy (resolved by Electron, plain HTTP proxies only) | HTTP | 3.5 and 3.7 (proxies first, direct last); 3.7a only as a retry after a failed direct request | the destinations above pass through it | — | `httpsRequest()`, `routeOrder()` |
 
-Not present in the code: analytics, telemetry, crash reporting, advertising, silent or automatic installation of updates, any Sahne Plus server, Google Fonts (removed in 1.1.0; all fonts are bundled). Since 1.3.1 the only contact with GitHub at runtime is the update check (3.11) and, after a click, the update download (3.12).
+Not present in the code: telemetry, crash reporting, advertising, silent or automatic installation of updates, any Sahne Plus server, Google Fonts (removed in 1.1.0; all fonts are bundled). Analytics (1.4.0) is entirely **local**: it aggregates the app's own recorded donation history, on the machine, and never phones home. Since 1.3.1 the only contact with GitHub at runtime is the update check (3.11) and, after a click, the update download (3.12).
 
 Electron/Chromium platform traffic: the app does not set Google API keys, does not enable the Chromium component updater and does not load remote content in the controller window. Observed established connections of the running 1.0.1 build were exactly two: an AWS host (KickBot) and one other host (Pusher/KickBot). Chromium-level background requests (e.g. certificate revocation checks) were not exhaustively traced and are documented as "not expected, not fully verified".
 
@@ -79,6 +80,9 @@ Electron/Chromium platform traffic: the app does not set Google API keys, does n
 | `Documents\Sahne Plus\config.json.corrupt-<ts>` | W | copy of an unparsable config | same as above |
 | `Documents\Sahne Plus\media\*` | R/W | imported alert media (copied; the source file is never touched) | user content |
 | `Documents\Sahne Plus\played.json` | R/W | last 1000 played tip ids | low |
+| `Documents\Sahne Plus\analytics-<YYYY-MM>.ndjson` | R/W (append; the current month is rewritten only to patch one line's `played` outcome) | one JSON line per donation accepted into the queue: id, instant, local day, tipster name, amount + currency, Toman value at that instant, rate, kind, source, gift count, tags, played flag. Capped at 5000 lines/day and 20000 lines total | donor names and amounts (third-party personal data, local only) |
+| `Documents\Sahne Plus\analytics-rollup\<YYYY-MM>.json` | W | per-month summary (count, sums, donors, per-day, kinds) for months older than the 3 newest; the detail file is then deleted | aggregate only, no individual records |
+| `Documents\Sahne Plus\analytics-donors.json` | R/W | name → first-seen instant, so "new vs returning donor" survives a rollup | donor names (local only) |
 | `Documents\Sahne Plus\sahne-plus.log` (+ `.1`) | W, rotates at 5 MB | log lines: connection state, tip name / amount / message / media, errors. Secrets are redacted by `safe()` | donor names and messages (personal data of third parties, local only) |
 | `%APPDATA%\SahnePlus\` | R/W by Chromium | Electron userData: cache, `Local Storage` (only `sp.page`), GPU cache, single-instance lock | low |
 | `Documents\KickAlerts\config.json`, `media\` | **R only, once** | legacy import on first run (copy) | — |
@@ -102,7 +106,7 @@ Uninstalling removes the program folder and (by default) `%APPDATA%\SahnePlus`. 
 
 - **LOCAL-ONLY**: appearance settings, file tiers/keywords, media files, played ids, logs, window state.
 - **NETWORK-PROCESSED**: the KickBot secret + streamer id (to KickBot), tip ids (to KickBot), Kick channel slug (to kick.com), nothing to anyone else.
-- **PERSISTENT**: config.json, media, played.json, log, Electron userData.
+- **PERSISTENT**: config.json, media, played.json, analytics history (month files, rollups, donor index), log, Electron userData.
 - **TEMPORARY**: in-memory queues (`pending`, `approved`, capped at 500), last-30 recent list, in-memory log (300 lines), 15-second duplicate keys for Kick events.
 - **CREDENTIAL/SENSITIVE**: KickBot secret (encrypted), optional proxy URL.
 - **THIRD-PARTY DATA**: donor names/amounts/messages and TTS/GIF URLs from KickBot; subscriber/gifter usernames from Kick chat; exchange rate from Bonbast.
@@ -115,4 +119,4 @@ Uninstalling removes the program folder and (by default) `%APPDATA%\SahnePlus`. 
 
 The sentence "no information leaves the computer" is **false** for this application and must not be used. Verified wording:
 
-> Sahne Plus has no cloud backend. Your alert media, settings and logs stay on your computer. The application connects only to the third-party services it needs to work: KickBot (donation events and payment capture), Kick's public chat feed (subscriptions), and bonbast.com (exchange rate). It contains no analytics, telemetry, crash reporting or advertising.
+> Sahne Plus has no cloud backend. Your alert media, settings, donation history and logs stay on your computer. The application connects only to the third-party services it needs to work: KickBot (donation events and payment capture), Kick's public chat feed (subscriptions), and bonbast.com (exchange rate). Its analytics page is computed locally from your own recorded donations; it sends nothing anywhere. There is no telemetry, crash reporting or advertising.
