@@ -718,7 +718,7 @@ function createServer(opts) {
       tippingEnabled,
       pending: pending.length,
       approved: approved.length,
-      playing: playing ? tipSummary(playing) : null,
+      playing: playing ? { ...tipSummary(playing), toman: tomanFor(playing) } : null,
       mode: config.mode,
       nodeVersion: process.versions.node,
       nodeOk: NODE_OK,

@@ -33,6 +33,11 @@ function fmtToman(t) {
   if (t >= 1e3) return faNum(+(t / 1e3).toFixed(1)) + ' هزار';
   return faNum(t) + ' تومان';
 }
+// a tip's amount for the Home page: toman when a rate is known, else the amount with its currency code
+function fmtTipAmount(t) {
+  if (t.toman) return fmtToman(t.toman);
+  return t.currency && t.currency !== 'USD' ? esc(t.amount + ' ' + t.currency) : '$' + esc(t.amount);
+}
 function fmtSize(b) {
   if (!b) return '';
   const u = ['B', 'KB', 'MB', 'GB'];
@@ -972,7 +977,7 @@ function renderState() {
   $('#hOv').textContent = s.overlays;
   $('#hMode').textContent = s.mode === 'standalone' ? 'جایگزین ویجت' : 'کنار ویجت';
   $('#sPlaying').innerHTML = s.playing
-    ? `<span class="chip on">${esc(s.playing.name)} · $${s.playing.amount}</span>`
+    ? `<span class="chip on">${esc(s.playing.name)} · ${fmtTipAmount(s.playing)}</span>`
     : '—';
   $('#sApproved').textContent = s.approved;
   $('#sPending').textContent = s.pending;
@@ -999,7 +1004,7 @@ function renderState() {
   s.recent.forEach(t => {
     const d = document.createElement('div');
     d.className = 'it';
-    d.innerHTML = `<span class="a">${t.toman ? fmtToman(t.toman) : t.currency && t.currency !== 'USD' ? t.amount + ' ' + t.currency : '$' + t.amount}</span><b>${esc(t.name || '')}</b>${t.kind === 'gift' ? '<span class="chip">🎁 ' + faNum(t.count) + ' ساب‌گیفت</span>' : t.kind === 'sub' ? '<span class="chip">⭐ ساب</span>' : ''}<span class="m">${esc(t.message || '')}</span><span class="chip">${t.media ? esc(t.media) : 'بدون فایل'}</span>${t.test ? '<span class="chip warn">تست</span>' : ''}`;
+    d.innerHTML = `<span class="a">${fmtTipAmount(t)}</span><b>${esc(t.name || '')}</b>${t.kind === 'gift' ? '<span class="chip">🎁 ' + faNum(t.count) + ' ساب‌گیفت</span>' : t.kind === 'sub' ? '<span class="chip">⭐ ساب</span>' : ''}<span class="m">${esc(t.message || '')}</span><span class="chip">${t.media ? esc(t.media) : 'بدون فایل'}</span>${t.test ? '<span class="chip warn">تست</span>' : ''}`;
     rc.appendChild(d);
   });
 }

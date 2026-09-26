@@ -619,7 +619,10 @@ test('other currencies: rates are read from baha24 / bonbast and a StreamElement
       res.on('end', () => r(d));
     })
   );
-  assert.equal(JSON.parse(cfgText).state.recent[0].toman, 1250000, 'the recent list uses the same conversion');
+  const state = JSON.parse(cfgText).state;
+  assert.equal(state.recent[0].toman, 1250000, 'the recent list uses the same conversion');
+  assert.equal(state.playing.currency, 'EUR', 'the playing alert keeps its currency');
+  assert.equal(state.playing.toman, 1250000, 'and carries the same toman value as the recent list');
 });
 
 test('in-app legal documents are identical to the repository copies', () => {
