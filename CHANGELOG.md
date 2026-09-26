@@ -2,9 +2,10 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
-## 1.3.3 — 2026-09-22
+## 1.3.6 — 2026-09-26
 
-- Hardening: the installed app ignores Chromium's remote-debugging switches (`--remote-debugging-port`, `--remote-debugging-pipe`, `--remote-debugging-address`), so it can no longer be started with the DevTools protocol open; the ignored switch is noted in the log. Development runs (`electron .`) are unchanged. Defence in depth — starting the app with arguments already requires access to the Windows account.
+- Fixed: disconnecting KickBot also removed the Kick subscription / gift-sub alerts and StreamElements tips that were waiting in the queue (for example while no Browser Source was open). Only KickBot's own donations are removed now (thanks [SoroushRF](https://github.com/SoroushRF), [#4](https://github.com/AmirEyZed/sahne-plus/pull/4)).
+- Fixed: the «در حال پخش» chip on the Home page always showed a dollar sign, so a 5 EUR StreamElements tip read "$5" and a Kick sub showed its dollar equivalent. It now shows the same amount as the recent list: toman, or the amount with its currency code when no rate is known (thanks [SoroushRF](https://github.com/SoroushRF), [#5](https://github.com/AmirEyZed/sahne-plus/pull/5)).
 
 ## 1.3.5 — 2026-09-22
 
@@ -14,6 +15,10 @@ All notable changes to the public builds. Versions follow semantic versioning.
 ## 1.3.4 — 2026-09-22
 
 - New: **StreamElements tips**. Paste the JWT token of your StreamElements account in Settings and tips from your StreamElements tipping page enter the same queue as KickBot donations, with the same files and tiers. The token is stored encrypted like the KickBot key, never shown or logged, and removed with one click. Tips in a currency other than USD are shown with their amount and currency code (no toman conversion). New network destinations are documented in PRIVACY.md and docs/DATA_FLOW.md.
+
+## 1.3.3 — 2026-09-22
+
+- Hardening: the installed app ignores Chromium's remote-debugging switches (`--remote-debugging-port`, `--remote-debugging-pipe`, `--remote-debugging-address`), so it can no longer be started with the DevTools protocol open; the ignored switch is noted in the log. Development runs (`electron .`) are unchanged. Defence in depth — starting the app with arguments already requires access to the Windows account.
 
 ## 1.3.2 — 2026-09-21
 
