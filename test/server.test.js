@@ -625,6 +625,61 @@ test('other currencies: rates are read from baha24 / bonbast and a StreamElement
   assert.equal(state.playing.toman, 1250000, 'and carries the same toman value as the recent list');
 });
 
+test('disconnecting KickBot drops only its own tips; Kick subs, StreamElements tips and test alerts stay queued', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sahne-test-'));
+  const port = 8400 + Math.floor(Math.random() * 100);
+  fs.writeFileSync(
+    path.join(dir, 'config.json'),
+    JSON.stringify({
+      port,
+      secret_id: 'a'.repeat(32) + ':' + 'b'.repeat(32),
+      streamer_id: 1,
+      rate: { auto: false },
+      kick: { enabled: false },
+      app: { autostart: false }
+    })
+  );
+  const srv = createServer({
+    dataDir: dir,
+    publicDir: path.join(__dirname, '..', 'public'),
+    appVersion: 'test',
+    testHooks: { offline: true }
+  });
+  await srv.start();
+  t.after(async () => {
+    await srv.stop();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  const req = (method, p) =>
+    new Promise((resolve, reject) => {
+      const r = http.request(
+        { host: '127.0.0.1', port, path: p, method, headers: { Origin: `http://127.0.0.1:${port}` } },
+        res => {
+          let d = '';
+          res.on('data', c => (d += c));
+          res.on('end', () => resolve({ status: res.statusCode, body: d }));
+        }
+      );
+      r.on('error', reject);
+      r.end();
+    });
+  // no Browser Source is connected, so everything injected stays in the queue
+  const base = {
+    tipper_name: 'Donor',
+    amount_total: 500,
+    approval_status: 'approved',
+    created_at: new Date().toISOString()
+  };
+  srv.testHooks.injectTip({ ...base, stripe_pi_id: 'pi_kickbot' });
+  srv.testHooks.injectTip({ ...base, stripe_pi_id: 'se_tip', is_local: true, source: 'streamelements' });
+  srv.testHooks.injectTip({ ...base, stripe_pi_id: 'sub_kick', is_local: true, kind: 'sub', count: 1 });
+  srv.testHooks.injectTip({ ...base, stripe_pi_id: 'test_alert', is_test: true, is_local: true });
+  assert.equal(srv.testHooks.queueLength(), 4);
+  assert.equal((await req('POST', '/api/disconnect-kickbot')).status, 200);
+  assert.deepEqual(srv.testHooks.queueIds(), ['se_tip', 'sub_kick', 'test_alert'], 'only the KickBot tip is removed');
+  assert.equal(JSON.parse((await req('GET', '/api/config')).body).config.kickbot.configured, false);
+});
+
 test('in-app legal documents are identical to the repository copies', () => {
   const root = path.join(__dirname, '..');
   const pairs = [

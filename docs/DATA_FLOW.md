@@ -38,7 +38,7 @@ Endpoints (all under `http://127.0.0.1:7788`):
 | `/api/upload` | PUT | controller (browser fallback) | media body ≤ 512 MB, extension + content sniff |
 | `/api/scan` | POST | controller | registers files already in the media folder |
 | `/api/setup` | POST | controller | the KickBot widget URL → parsed, secret kept in memory + encrypted store |
-| `/api/disconnect-kickbot` | POST | controller | wipes the secret and streamer id |
+| `/api/disconnect-kickbot` | POST | controller | wipes the secret and streamer id and removes KickBot's tips from the queue; Kick subs, StreamElements tips and test alerts stay queued |
 | `/api/reset-settings` | POST | controller | defaults for appearance / rate / kick / mode |
 | `/api/test`, `/api/test-sub`, `/api/preview`, `/api/simulate` | POST / GET | controller | simulated events (see §7) |
 | `/api/rate`, `/api/meld-reload`, `/api/skip`, `/api/clear-queue`, `/api/open-media-folder`, `/api/logs` | POST / GET | controller | actions |
