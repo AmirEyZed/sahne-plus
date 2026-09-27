@@ -861,7 +861,8 @@ function createServer(opts) {
       is_test: !!p.is_test,
       gif_url: httpsUrl(p.gif_url),
       audio_url: httpsUrl(p.audio_url),
-      created_at: p.created_at
+      created_at: p.created_at,
+      source: 'kickbot'
     };
   }
   function handleEvent(type, raw) {
@@ -2534,9 +2535,9 @@ function createServer(opts) {
       if (p === '/api/disconnect-kickbot' && req.method === 'POST') {
         secret = '';
         config.streamer_id = null;
-        // drop only KickBot's tips; Kick subs, StreamElements tips and test alerts stay queued (same rule as the queue sync)
-        pending = pending.filter(t => t.is_test || t.is_local);
-        approved = approved.filter(t => t.is_test || t.is_local);
+        // drop only KickBot's tips (including its dashboard test tips); Kick subs, StreamElements tips and the app's own test alerts stay queued
+        pending = pending.filter(t => t.source !== 'kickbot');
+        approved = approved.filter(t => t.source !== 'kickbot');
         saveConfig();
         if (ws) {
           try {
@@ -2703,6 +2704,8 @@ function createServer(opts) {
         },
         queueLength: () => approved.length,
         queueIds: () => approved.map(t => t.stripe_pi_id),
+        pendingIds: () => pending.map(t => t.stripe_pi_id),
+        kickbotEvent: (type, raw) => handleEvent(type, raw),
         isPlayed: id => playedIds.has(id)
       }
     : undefined;

@@ -625,7 +625,7 @@ test('other currencies: rates are read from baha24 / bonbast and a StreamElement
   assert.equal(state.playing.toman, 1250000, 'and carries the same toman value as the recent list');
 });
 
-test('disconnecting KickBot drops only its own tips; Kick subs, StreamElements tips and test alerts stay queued', async t => {
+test('disconnecting KickBot drops only its own tips (dashboard tests too); Kick subs, StreamElements tips and the app test alerts stay queued', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sahne-test-'));
   const port = 8400 + Math.floor(Math.random() * 100);
   fs.writeFileSync(
@@ -650,10 +650,16 @@ test('disconnecting KickBot drops only its own tips; Kick subs, StreamElements t
     await srv.stop();
     fs.rmSync(dir, { recursive: true, force: true });
   });
-  const req = (method, p) =>
+  const req = (method, p, body) =>
     new Promise((resolve, reject) => {
       const r = http.request(
-        { host: '127.0.0.1', port, path: p, method, headers: { Origin: `http://127.0.0.1:${port}` } },
+        {
+          host: '127.0.0.1',
+          port,
+          path: p,
+          method,
+          headers: { Origin: `http://127.0.0.1:${port}`, 'Content-Type': 'application/json' }
+        },
         res => {
           let d = '';
           res.on('data', c => (d += c));
@@ -661,22 +667,45 @@ test('disconnecting KickBot drops only its own tips; Kick subs, StreamElements t
         }
       );
       r.on('error', reject);
+      if (body) r.write(JSON.stringify(body));
       r.end();
     });
-  // no Browser Source is connected, so everything injected stays in the queue
-  const base = {
+  // no Browser Source is connected, so every alert stays in the queue; each one enters through its real path
+  const kb = (id, extra) => ({
+    stripe_pi_id: id,
     tipper_name: 'Donor',
     amount_total: 500,
-    approval_status: 'approved',
-    created_at: new Date().toISOString()
-  };
-  srv.testHooks.injectTip({ ...base, stripe_pi_id: 'pi_kickbot' });
-  srv.testHooks.injectTip({ ...base, stripe_pi_id: 'se_tip', is_local: true, source: 'streamelements' });
-  srv.testHooks.injectTip({ ...base, stripe_pi_id: 'sub_kick', is_local: true, kind: 'sub', count: 1 });
-  srv.testHooks.injectTip({ ...base, stripe_pi_id: 'test_alert', is_test: true, is_local: true });
-  assert.equal(srv.testHooks.queueLength(), 4);
+    created_at: new Date().toISOString(),
+    ...extra
+  });
+  srv.testHooks.kickbotEvent('tip_initiated', kb('pi_kickbot', { approval_status: 'approved' }));
+  srv.testHooks.kickbotEvent('tip_initiated', kb('pi_dashboard_test', { approval_status: 'approved', is_test: true }));
+  srv.testHooks.kickbotEvent('tip_initiated', kb('pi_pending', { approval_status: 'pending' }));
+  srv.testHooks.injectTip(
+    parseSeActivity({ _id: 'se1', type: 'tip', data: { username: 'Donor', amount: 5, currency: 'EUR' } })
+  );
+  assert.equal((await req('POST', '/api/test-sub', { kind: 'sub', name: 'Subber' })).status, 200);
+  assert.equal((await req('POST', '/api/test', { name: 'Tester', amount: 5 })).status, 200);
+  const before = srv.testHooks.queueIds();
+  assert.equal(before.length, 5, before.join());
+  assert.deepEqual(srv.testHooks.pendingIds(), ['pi_pending']);
   assert.equal((await req('POST', '/api/disconnect-kickbot')).status, 200);
-  assert.deepEqual(srv.testHooks.queueIds(), ['se_tip', 'sub_kick', 'test_alert'], 'only the KickBot tip is removed');
+  const after = srv.testHooks.queueIds();
+  assert.deepEqual(
+    after,
+    before.filter(id => !id.startsWith('pi_')),
+    'KickBot tips, including its dashboard test tip, are removed'
+  );
+  assert.ok(after.includes('se_se1'), 'StreamElements tip kept');
+  assert.ok(
+    after.some(id => id.startsWith('sub_')),
+    'Kick sub kept'
+  );
+  assert.ok(
+    after.some(id => id.startsWith('test_')),
+    'test alert from the app kept'
+  );
+  assert.deepEqual(srv.testHooks.pendingIds(), [], 'KickBot pending tip removed');
   assert.equal(JSON.parse((await req('GET', '/api/config')).body).config.kickbot.configured, false);
 });
 
