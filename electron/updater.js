@@ -3,14 +3,16 @@
 // SHA256SUMS.txt before it runs. Network requests go through Electron's `net` (Chromium stack), so the Windows
 // system proxy of a VPN app is used automatically.
 'use strict';
-const { app, net } = require('electron');
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
 const { spawn } = require('child_process');
 const core = require('./update-core');
 
-function createUpdater({ version, canInstall, dryRun, log, onChange }) {
+// testHooks (tests only): electron (a stand-in { app, net }), responseMs / stallMs (shorter limits), open (file stream)
+function createUpdater({ version, canInstall, dryRun, log, onChange, testHooks = {} }) {
+  const { app, net } = testHooks.electron || require('electron');
+  const responseMs = testHooks.responseMs || core.RESPONSE_TIMEOUT_MS;
+  const stallMs = testHooks.stallMs || core.STALL_TIMEOUT_MS;
   let st = {
     status: 'idle', // idle | checking | uptodate | available | downloading | ready (dry run) | installing | error
     current: version,
@@ -28,7 +30,7 @@ function createUpdater({ version, canInstall, dryRun, log, onChange }) {
     } catch {}
   };
   const headers = { 'User-Agent': 'SahnePlus/' + version };
-  const dir = path.join(app.getPath('temp'), 'SahnePlus-update');
+  const dir = path.join(testHooks.tempDir || app.getPath('temp'), 'SahnePlus-update');
   const busy = () => ['checking', 'downloading', 'installing'].includes(st.status);
 
   // GitHub answers /releases/latest with a redirect to /releases/tag/vX.Y.Z. Only that redirect target is needed, so the
@@ -91,10 +93,26 @@ function createUpdater({ version, canInstall, dryRun, log, onChange }) {
     return { ...st };
   }
 
+  // the checksum file, body included, must arrive within responseMs
   async function fetchText(url) {
-    const r = await net.fetch(url, { headers, cache: 'no-store' });
-    if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + path.basename(url));
-    const text = await r.text();
+    const ac = new AbortController();
+    const text = await core
+      .withTimeout(
+        (async () => {
+          const r = await net.fetch(url, { headers, cache: 'no-store', signal: ac.signal });
+          if (!r.ok) {
+            if (r.body) r.body.cancel().catch(() => {}); // the error page is not read
+            throw new Error('HTTP ' + r.status + ' for ' + path.basename(url));
+          }
+          return r.text();
+        })(),
+        responseMs,
+        path.basename(url)
+      )
+      .catch(e => {
+        ac.abort(); // releases the request whatever failed (a timeout, an error status)
+        throw e;
+      });
     if (text.length > core.MAX_SUMS_BYTES) throw new Error('checksum file too large');
     return text;
   }
@@ -106,39 +124,39 @@ function createUpdater({ version, canInstall, dryRun, log, onChange }) {
     fs.rmSync(dir, { recursive: true, force: true });
     fs.mkdirSync(dir, { recursive: true });
     const dest = path.join(dir, file);
-    const r = await net.fetch(core.assetUrl(latest, file), { headers, cache: 'no-store' });
-    if (!r.ok || !r.body) throw new Error('HTTP ' + r.status + ' for ' + file);
-    const total = Number(r.headers.get('content-length')) || 0;
-    if (total > core.MAX_INSTALLER_BYTES) throw new Error('installer too large');
-    const hash = crypto.createHash('sha256');
-    const out = fs.createWriteStream(dest);
-    let got = 0,
-      lastPct = -1;
+    // the response headers must arrive within responseMs; after that only a stall (stallMs without progress) fails
+    // the download, so a slow but moving connection (a VPN) can take as long as it needs
+    const ac = new AbortController();
+    const r = await core.withTimeout(
+      net.fetch(core.assetUrl(latest, file), { headers, cache: 'no-store', signal: ac.signal }),
+      responseMs,
+      file,
+      () => ac.abort()
+    );
+    let lastPct = -1,
+      sha;
     try {
-      const reader = r.body.getReader();
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        got += value.length;
-        if (got > core.MAX_INSTALLER_BYTES) throw new Error('installer too large');
-        hash.update(value);
-        if (!out.write(value)) await new Promise(res => out.once('drain', res));
-        const pct = total ? Math.min(99, Math.floor((got / total) * 100)) : 0;
-        if (pct !== lastPct) {
-          lastPct = pct;
-          set({ progress: pct });
+      if (!r.ok || !r.body) throw new Error('HTTP ' + r.status + ' for ' + file);
+      const total = Number(r.headers.get('content-length')) || 0;
+      if (total > core.MAX_INSTALLER_BYTES) throw new Error('installer too large');
+      sha = await core.saveStream(r.body, dest, {
+        stallMs,
+        open: testHooks.open,
+        onData: got => {
+          const pct = total ? Math.min(99, Math.floor((got / total) * 100)) : 0;
+          if (pct !== lastPct) {
+            lastPct = pct;
+            set({ progress: pct });
+          }
         }
-      }
-      await new Promise((res, rej) => {
-        out.once('error', rej);
-        out.end(res);
       });
     } catch (e) {
-      out.destroy();
+      // an error response or a refused size leaves the body unread; saveStream has already cancelled its own
+      if (r.body && !r.body.locked) r.body.cancel(e).catch(() => {});
+      ac.abort();
       throw e;
     }
-    if (hash.digest('hex') !== expected)
-      throw new Error('checksum: SHA-256 of the download does not match SHA256SUMS.txt');
+    if (sha !== expected) throw new Error('checksum: SHA-256 of the download does not match SHA256SUMS.txt');
     const head = Buffer.alloc(2);
     const fd = fs.openSync(dest, 'r');
     try {
@@ -162,12 +180,15 @@ function createUpdater({ version, canInstall, dryRun, log, onChange }) {
         fs.rmSync(dir, { recursive: true, force: true });
       } catch {}
       log('error', 'دانلود آپدیت ناموفق بود', e.message);
+      if (fs.existsSync(dir)) log('warn', 'فایل ناقص آپدیت پاک نشد', dir);
       set({
         status: 'available',
         progress: 0,
         error: /^checksum/.test(e.message)
           ? 'فایل دانلودشده با چک‌سام رسمی جور نبود و نصب نشد.'
-          : 'دانلود ناموفق بود؛ اینترنت یا VPN را بررسی کنید و دوباره امتحان کنید.'
+          : core.isDiskError(e)
+            ? 'ذخیره‌ی فایل آپدیت ناموفق بود؛ فضای خالی دیسک یا آنتی‌ویروس را بررسی کنید و دوباره امتحان کنید.'
+            : 'دانلود ناموفق بود؛ اینترنت یا VPN را بررسی کنید و دوباره امتحان کنید.'
       });
       return { ...st };
     }
