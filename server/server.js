@@ -839,6 +839,7 @@ function createServer(opts) {
     }, 10000)
   );
   function publish(event_type, payload) {
+    if (opts.testHooks && typeof opts.testHooks.onPublish === 'function') opts.testHooks.onPublish(event_type, payload);
     if (!ws || ws.readyState !== 1) return;
     ws.send(
       JSON.stringify({
@@ -934,29 +935,31 @@ function createServer(opts) {
       });
       if (!r.ok) return;
       const j = await r.json();
-      const list = (Array.isArray(j.tip_transactions) ? j.tip_transactions : [])
-        .map(normalizeTip)
-        .filter(t => t.stripe_pi_id);
-      const pendIds = new Set(pending.map(t => t.stripe_pi_id)),
-        apprIds = new Set(approved.map(t => t.stripe_pi_id));
-      for (const t of list) {
-        const id = t.stripe_pi_id;
-        if ((playing && playing.stripe_pi_id === id) || playedIds.has(id)) continue;
-        if (t.approval_status === 'approved') {
-          if (pendIds.has(id)) {
-            pending = pending.filter(x => x.stripe_pi_id !== id);
-            approved.push(t);
-          } else if (!apprIds.has(id)) approved.push(t);
-        } else if (t.approval_status === 'pending' && !pendIds.has(id) && !apprIds.has(id)) pending.push(t);
-      }
-      const ids = new Set(list.map(t => t.stripe_pi_id));
-      pending = pending.filter(t => ids.has(t.stripe_pi_id) || t.is_test || t.is_local);
-      approved = approved.filter(t => ids.has(t.stripe_pi_id) || t.is_test || t.is_local);
-      tryNext();
-      sendState();
+      applyQueueSync(Array.isArray(j.tip_transactions) ? j.tip_transactions : []);
     } catch (e) {
       log('warn', 'همگام‌سازی صف کیک‌بات ناموفق بود', e.name === 'TimeoutError' ? 'timeout' : e.message);
     }
+  }
+  function applyQueueSync(raw) {
+    const list = raw.map(normalizeTip).filter(t => t.stripe_pi_id);
+    const pendIds = new Set(pending.map(t => t.stripe_pi_id)),
+      apprIds = new Set(approved.map(t => t.stripe_pi_id));
+    for (const t of list) {
+      const id = t.stripe_pi_id;
+      if ((playing && playing.stripe_pi_id === id) || playedIds.has(id)) continue;
+      if (t.approval_status === 'approved') {
+        if (pendIds.has(id)) {
+          pending = pending.filter(x => x.stripe_pi_id !== id);
+          approved.push(t);
+        } else if (!apprIds.has(id)) approved.push(t);
+      } else if (t.approval_status === 'pending' && !pendIds.has(id) && !apprIds.has(id)) pending.push(t);
+    }
+    const ids = new Set(list.map(t => t.stripe_pi_id));
+    pending = pending.filter(t => ids.has(t.stripe_pi_id) || t.is_test || t.is_local);
+    // a captured tip may no longer be listed by KickBot but still waits here to be shown (Browser Source closed during the capture)
+    approved = approved.filter(t => ids.has(t.stripe_pi_id) || t.is_test || t.is_local || t.captured);
+    tryNext();
+    sendState();
   }
   timers.push(
     setInterval(() => {
@@ -1816,7 +1819,7 @@ function createServer(opts) {
     try {
       playing = t;
       sendState();
-      if (!t.is_test && !t.is_local) {
+      if (!t.is_test && !t.is_local && !t.captured) {
         const res = await capture(t);
         if (!playing || playing.stripe_pi_id !== t.stripe_pi_id) return; // skipped / cleared while capturing
         if (res !== 'ok') {
@@ -1853,8 +1856,18 @@ function createServer(opts) {
           next = approved.length > 1;
           return; // other tips need not wait; the failed one is retried after the delay
         }
-        publish('tip_play', { stripe_pi_id: t.stripe_pi_id });
+        t.captured = true; // the payment is taken: this tip is never captured again
       }
+      if (clients.overlay.size === 0) {
+        // every Browser Source closed while the payment was being captured: showing now would reach nobody, so the
+        // tip goes back to the front of the queue (not marked as played) and plays when a Browser Source connects
+        playing = null;
+        approved.unshift(t);
+        log('warn', 'هیچ Browser Source ای متصل نیست؛ دونیت پرداخت‌شده در صف ماند تا دوباره وصل شود', tipSummary(t));
+        sendState();
+        return;
+      }
+      if (!t.is_test && !t.is_local) publish('tip_play', { stripe_pi_id: t.stripe_pi_id });
       captureFailures.delete(t.stripe_pi_id);
       markPlayed(t.stripe_pi_id);
       showTip(t);
@@ -2697,6 +2710,7 @@ function createServer(opts) {
 
   const testHooks = opts.testHooks
     ? {
+        kickbotSync: raw => applyQueueSync(raw),
         injectTip: t => {
           approved.push(t);
           tryNext();
