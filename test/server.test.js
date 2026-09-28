@@ -450,6 +450,207 @@ test('a tip captured while the Browser Source closes is kept at the front, survi
   assert.equal(srv.testHooks.queueLength(), 0);
 });
 
+test('a captured tip waiting for a Browser Source survives a restart and plays once, with no second capture', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sahne-test-'));
+  const port = 8500 + Math.floor(Math.random() * 100);
+  fs.writeFileSync(
+    path.join(dir, 'config.json'),
+    JSON.stringify({
+      port,
+      secret_id: 'a'.repeat(32) + ':' + 'b'.repeat(32),
+      streamer_id: 1,
+      rate: { auto: false, manual: 100000 },
+      kick: { enabled: false },
+      app: { autostart: false }
+    })
+  );
+  const CAPTURED = path.join(dir, 'captured.json');
+  const saved = () => (fs.existsSync(CAPTURED) ? JSON.parse(fs.readFileSync(CAPTURED, 'utf8')) : null);
+  const captures = [];
+  const published = [];
+  let duringCapture = null;
+  const overlays = [];
+  let srv = null;
+  const boot = async () => {
+    srv = createServer({
+      dataDir: dir,
+      publicDir: path.join(__dirname, '..', 'public'),
+      appVersion: 'test',
+      testHooks: {
+        offline: true,
+        captureTip: async tip => {
+          captures.push(tip.stripe_pi_id);
+          if (duringCapture) await duringCapture();
+          return 'ok';
+        },
+        onPublish: (type, payload) => published.push(type + ':' + payload.stripe_pi_id)
+      }
+    });
+    await srv.start();
+  };
+  t.after(async () => {
+    overlays.forEach(o => o.req.destroy());
+    if (srv) await srv.stop();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  // agent: false: no keep-alive socket of a stopped server is reused after a restart
+  const waitFor = async (cond, what) => {
+    for (const end = Date.now() + 3000; Date.now() < end; await sleep(10)) if (await cond()) return;
+    assert.fail('timed out waiting for: ' + what);
+  };
+  const request = (method, p) =>
+    new Promise((resolve, reject) =>
+      http
+        .request(
+          { host: '127.0.0.1', port, agent: false, path: p, method, headers: { Origin: `http://127.0.0.1:${port}` } },
+          res => {
+            let d = '';
+            res.on('data', c => (d += c));
+            res.on('end', () => resolve(JSON.parse(d)));
+          }
+        )
+        .on('error', reject)
+        .end()
+    );
+  const overlayCount = async () => (await request('GET', '/api/config')).state.overlays;
+  const openOverlay = () => {
+    const o = { events: [] };
+    o.req = http.get({ host: '127.0.0.1', port, agent: false, path: '/events?role=overlay' }, res => {
+      res.setEncoding('utf8');
+      res.on('data', c => o.events.push(c));
+    });
+    o.req.on('error', () => {});
+    overlays.push(o);
+    return o;
+  };
+  const plays = o =>
+    o.events
+      .join('')
+      .split('\n')
+      .filter(l => l.startsWith('data: ') && l.includes('"type":"play"'))
+      .map(l => JSON.parse(l.slice(6)).tip.id);
+  const tip = id => ({
+    stripe_pi_id: id,
+    tipper_name: 'Donor ' + id,
+    tip_message: 'hello',
+    amount_total: 500,
+    approval_status: 'approved',
+    created_at: new Date().toISOString()
+  });
+  // the only Browser Source closes while KickBot is capturing the payment (as in the test above)
+  const captureWhileClosing = async (first, alsoQueued) => {
+    if (typeof first === 'string') first = tip(first);
+    const id = first.stripe_pi_id;
+    const o = openOverlay();
+    await waitFor(async () => (await overlayCount()) === 1, 'the Browser Source to register');
+    duringCapture = async () => {
+      if (alsoQueued) srv.testHooks.injectTip(tip(alsoQueued));
+      o.req.destroy();
+      await waitFor(async () => (await overlayCount()) === 0, 'the server to see the Browser Source close');
+    };
+    const before = captures.length;
+    srv.testHooks.injectTip(first);
+    await waitFor(
+      () => captures.length === before + 1 && srv.testHooks.queueIds().includes(id),
+      'the tip to be requeued'
+    );
+    duringCapture = null;
+  };
+
+  await boot();
+  assert.equal(saved(), null, 'no file while nothing captured is waiting');
+
+  // clearing the queue drops a waiting captured tip from the file too
+  await captureWhileClosing('pi_cleared');
+  assert.deepEqual(
+    saved().map(x => x.stripe_pi_id),
+    ['pi_cleared']
+  );
+  await request('POST', '/api/clear-queue');
+  assert.equal(saved(), null, 'clear-queue removes the file');
+
+  // a second tip arrives during the capture: it is not captured, so it is not written
+  await captureWhileClosing('pi_wait', 'pi_uncaptured');
+  assert.deepEqual(srv.testHooks.queueIds(), ['pi_wait', 'pi_uncaptured']);
+  assert.deepEqual(
+    saved().map(x => [x.stripe_pi_id, x.tipper_name, x.tip_message, x.amount_total]),
+    [['pi_wait', 'Donor pi_wait', 'hello', 500]],
+    'only the captured tip is written, as soon as it goes back to the queue'
+  );
+
+  // the app is closed and started again: the tip is back at the front, still captured, and survives a sync that no longer lists it
+  await srv.stop();
+  await boot();
+  assert.deepEqual(
+    srv.testHooks.queueIds(),
+    ['pi_wait'],
+    'the captured tip is restored after a restart (KickBot still lists the other one)'
+  );
+  srv.testHooks.kickbotSync([]);
+  assert.deepEqual(srv.testHooks.queueIds(), ['pi_wait'], 'the restored tip is still marked as captured');
+  const shown = openOverlay();
+  await waitFor(() => plays(shown).length > 0, 'the play event after the restart');
+  assert.deepEqual(plays(shown), ['pi_wait']);
+  assert.deepEqual(captures, ['pi_cleared', 'pi_wait'], 'no second capture request after the restart');
+  assert.deepEqual(
+    published.filter(p => p.startsWith('tip_play:')),
+    ['tip_play:pi_wait'],
+    'tip_play is published once'
+  );
+  assert.equal(srv.testHooks.isPlayed('pi_wait'), true);
+  assert.equal(saved(), null, 'the file is removed once the tip has played');
+
+  // an entry that was already played, a test tip, malformed entries and a corrupt file are not restored
+  await srv.stop();
+  fs.writeFileSync(
+    CAPTURED,
+    JSON.stringify([tip('pi_wait'), { ...tip('pi_test'), is_test: true }, null, 'x', { tipper_name: 'no id' }])
+  );
+  await boot();
+  assert.deepEqual(srv.testHooks.queueIds(), [], 'played, test and malformed entries are ignored');
+  assert.equal(saved(), null, 'and removed from disk');
+
+  // a replay of an alert that already played is captured again; if it has to wait, it is restored although its id is in played.json
+  await captureWhileClosing({ ...tip('pi_wait'), is_replay: true });
+  assert.deepEqual(
+    saved().map(x => [x.stripe_pi_id, x.is_replay]),
+    [['pi_wait', true]]
+  );
+  await srv.stop();
+  await boot();
+  assert.deepEqual(srv.testHooks.queueIds(), ['pi_wait'], 'a waiting replay is restored');
+  const replayed = openOverlay();
+  await waitFor(() => plays(replayed).length > 0, 'the replay to play after the restart');
+  assert.deepEqual(plays(replayed), ['pi_wait']);
+  assert.equal(
+    captures.filter(id => id === 'pi_wait').length,
+    2,
+    'the replay was captured once, not again after the restart'
+  );
+  assert.equal(saved(), null, 'the file is removed once the replay has played');
+
+  await srv.stop();
+  fs.writeFileSync(CAPTURED, '{not json');
+  await boot();
+  assert.deepEqual(srv.testHooks.queueIds(), [], 'a corrupt file is ignored');
+  assert.equal(fs.existsSync(CAPTURED), false, 'and removed');
+
+  // "Clear application data" while a capture is in flight: the file is deleted and not written again when the capture returns
+  const o = openOverlay();
+  await waitFor(async () => (await overlayCount()) === 1, 'the Browser Source to register');
+  duringCapture = async () => {
+    o.req.destroy();
+    await waitFor(async () => (await overlayCount()) === 0, 'the server to see the Browser Source close');
+    fs.writeFileSync(CAPTURED, JSON.stringify([tip('pi_other')]));
+    srv.clearData();
+    assert.equal(fs.existsSync(CAPTURED), false, 'clearData removes captured.json');
+  };
+  srv.testHooks.injectTip(tip('pi_wipe'));
+  await waitFor(() => srv.testHooks.queueIds().includes('pi_wipe'), 'the capture to return');
+  assert.equal(fs.existsSync(CAPTURED), false, 'nothing is written after the wipe');
+});
+
 test('event streams: foreign pages are refused and the number of streams is bounded (1.3.2)', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sahne-test-'));
   const port = 8000 + Math.floor(Math.random() * 100);

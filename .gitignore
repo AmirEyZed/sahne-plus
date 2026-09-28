@@ -6,6 +6,7 @@ release/
 config.json
 config.json.*
 played.json
+captured.json
 .env
 .env.*
 scripts/xss-payload.json

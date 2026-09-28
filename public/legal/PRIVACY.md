@@ -25,6 +25,7 @@ All application data lives in `Documents\Sahne Plus`:
 | Your StreamElements JWT token (optional, 1.3.4+) | `config.json` → `se_token_enc` | same protection as the KickBot key (DPAPI). This token controls your whole StreamElements account; the app only reads the tipping feed with it. Removed by «قطع اتصال و حذف توکن». |
 | Alert media you import (videos, images, sounds) | `media\` | copied into this folder; your original files are never modified or deleted |
 | Ids of the last 1000 alerts already shown | `played.json` | prevents replaying a donation after a restart |
+| A KickBot donation whose payment was already taken but that has not been shown yet (name, amount, message, TTS/GIF links) | `captured.json` | only exists while such a donation waits for a Browser Source (every Browser Source closed during the payment). It lets the donation still play after a restart, and is deleted once it plays or leaves the queue (rejected, queue cleared, KickBot disconnected) |
 | Diagnostic log | `sahne-plus.log` | connection status, errors, and for each alert: donor/subscriber name, amount, message and the media used. The KickBot key is never written to the log. Rotates at 5 MB. |
 
 Electron (the runtime) keeps its own browser profile in `%APPDATA%\SahnePlus` (cache, the last opened page).
@@ -63,7 +64,7 @@ Donation and subscription events contain the names and messages of your viewers.
 
 ## 7. Deleting your data
 
-- **In the app:** Settings → "Clear application data" deletes `config.json`, `played.json` and everything in `media\` (after a confirmation), then restarts the app. Settings → "Disconnect KickBot" removes only the widget key. "Reset settings" restores defaults without touching media.
+- **In the app:** Settings → "Clear application data" deletes `config.json`, `played.json`, `captured.json` and everything in `media\` (after a confirmation), then restarts the app. Settings → "Disconnect KickBot" removes only the widget key. "Reset settings" restores defaults without touching media.
 - **Manually:** delete the folder `Documents\Sahne Plus`.
 - **Uninstalling** the application removes the program files and Electron's profile folder (`%APPDATA%\SahnePlus`) but **does not** delete `Documents\Sahne Plus`, so your media survives a reinstall.
 - **Autostart:** the uninstaller also removes the "run at Windows login" registry entry (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run\SahnePlus`), so nothing of the program is left in the registry.

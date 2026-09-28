@@ -441,6 +441,7 @@ function createServer(opts) {
   const MEDIA = path.join(DATA, 'media');
   const CFG_PATH = path.join(DATA, 'config.json');
   const PLAYED_PATH = path.join(DATA, 'played.json');
+  const CAPTURED_PATH = path.join(DATA, 'captured.json');
   const APP_VERSION = opts.appVersion || '0.0.0';
   const NODE_OK = typeof fetch === 'function' && typeof WebSocket === 'function';
   const store = opts.secretStore || null;
@@ -690,6 +691,7 @@ function createServer(opts) {
     }
   }
   function sendState() {
+    saveCaptured(); // every queue change ends here
     broadcast('admin', { type: 'state', state: publicState() });
   }
   function kbStatus() {
@@ -784,6 +786,38 @@ function createServer(opts) {
     playTimeout = null;
   const recent = [];
   const timers = [];
+
+  // ---------- captured tips not shown yet (survive a restart: the payment is taken, KickBot may no longer list the tip) ----------
+  let capturedSaved = null;
+  try {
+    const arr = JSON.parse(fs.readFileSync(CAPTURED_PATH, 'utf8'));
+    if (Array.isArray(arr))
+      for (const x of arr.slice(0, 500)) {
+        const t = x && typeof x === 'object' && normalizeTip(x);
+        // an already played id is skipped, except for a replay (as in tryNext())
+        if (!t || !t.stripe_pi_id || t.is_test || (!t.is_replay && playedIds.has(t.stripe_pi_id))) continue;
+        if (approved.some(y => y.stripe_pi_id === t.stripe_pi_id)) continue;
+        approved.push({ ...t, captured: true });
+        log('info', 'دونیت پرداخت‌شده‌ای که نمایش داده نشده بود به صف برگشت', tipSummary(t));
+      }
+  } catch {}
+  saveCaptured(); // rewrites what was restored; played, malformed or unreadable entries do not stay on disk
+  function saveCaptured() {
+    if (stopped) return; // Clear application data deletes the file after stop()
+    const list = approved.filter(t => t.captured);
+    const key = list.map(t => t.stripe_pi_id).join(',');
+    if (key === capturedSaved) return;
+    try {
+      if (list.length) {
+        const tmp = CAPTURED_PATH + '.tmp';
+        fs.writeFileSync(tmp, JSON.stringify(list.map(normalizeTip)));
+        fs.renameSync(tmp, CAPTURED_PATH);
+      } else fs.rmSync(CAPTURED_PATH, { force: true });
+      capturedSaved = key;
+    } catch (e) {
+      log('warn', 'ذخیره‌ی دونیت پرداخت‌شده روی دیسک ناموفق بود', e.message);
+    }
+  }
   function connect() {
     if (stopped || !NODE_OK || !secret || !config.streamer_id) return;
     if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;
@@ -2696,7 +2730,7 @@ function createServer(opts) {
         fs.unlinkSync(path.join(MEDIA, f));
       } catch {}
     }
-    for (const f of [CFG_PATH, PLAYED_PATH]) {
+    for (const f of [CFG_PATH, PLAYED_PATH, CAPTURED_PATH, CAPTURED_PATH + '.tmp']) {
       try {
         fs.unlinkSync(f);
       } catch {}

@@ -2,6 +2,10 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
+## Unreleased
+
+- Fixed: a paid KickBot donation that was waiting for a Browser Source (all Browser Sources closed while its payment was captured) was lost if the app was closed before a Browser Source connected again. It is now kept in `captured.json` next to `played.json`, plays after a restart without a second capture request, and the file is deleted once it has played or left the queue.
+
 ## 1.3.7 — 2026-09-28
 
 - Fixed: a KickBot donation whose payment was captured while the last Browser Source closed (OBS closed, the source refreshed, or hidden with "Shutdown source when not visible") was marked as played but shown to nobody, and never came back. It now goes back to the front of the queue, is not marked as played, and plays once a Browser Source connects, without a second capture request (thanks [SoroushRF](https://github.com/SoroushRF), [#8](https://github.com/AmirEyZed/sahne-plus/pull/8)).
