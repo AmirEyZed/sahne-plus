@@ -5,6 +5,7 @@ All notable changes to the public builds. Versions follow semantic versioning.
 ## Unreleased
 
 - Fixed: a paid KickBot donation that was waiting for a Browser Source (all Browser Sources closed while its payment was captured) was lost if the app was closed before a Browser Source connected again. It is now kept in `captured.json` next to `played.json`, plays after a restart without a second capture request, and the file is deleted once it has played or left the queue.
+- Changed: the KickBot widget-link fields («راه‌اندازی اولیه» and «تغییر اتصال») are now masked like the StreamElements token field and are emptied once the connection succeeds. The link contains the widget key, so it no longer stays readable on screen when you share your screen or stream the app window. Masked fields (this one and the StreamElements token) now also get the normal field style instead of a small white box.
 
 ## 1.3.7 — 2026-09-28
 

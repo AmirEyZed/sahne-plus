@@ -127,6 +127,7 @@ async function doSetup(inputSel, msgSel) {
   msg.textContent = 'در حال بررسی…';
   const r = await post('/api/setup', { url: $(inputSel).value });
   if (r.ok) {
+    $('#setupUrl').value = $('#setupUrl2').value = '';
     toast('متصل شد', 'ok');
     msg.textContent = 'انجام شد. Streamer ID: ' + r.streamer_id;
     load();

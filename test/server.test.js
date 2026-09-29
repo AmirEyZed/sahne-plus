@@ -1023,6 +1023,21 @@ test('disconnecting KickBot drops only its own tips (dashboard tests too); Kick 
   assert.equal(JSON.parse((await req('GET', '/api/config')).body).config.kickbot.configured, false);
 });
 
+test('secret input fields (KickBot widget URL, StreamElements token) are masked and styled', () => {
+  const root = path.join(__dirname, '..');
+  const html = fs.readFileSync(path.join(root, 'public', 'app.html'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'public', 'app.css'), 'utf8');
+  // The widget URL carries the widget secret: it must not sit readable on screen while streaming.
+  for (const id of ['setupUrl', 'setupUrl2', 'seToken']) {
+    const tag = html.match(new RegExp('<input[^>]*\\bid="' + id + '"[^>]*>'));
+    assert.ok(tag, id + ' input exists');
+    assert.match(tag[0], /type="password"/, id + ' is masked');
+    assert.match(tag[0], /autocomplete="off"/, id + ' is not offered to autofill');
+  }
+  // Without this selector a masked field falls back to the browser default (white box, unreadable dots).
+  assert.match(css, /^input\[type=text\][^{]*input\[type=password\][^{]*\{/m, 'password inputs share the field style');
+});
+
 test('in-app legal documents are identical to the repository copies', () => {
   const root = path.join(__dirname, '..');
   const pairs = [
