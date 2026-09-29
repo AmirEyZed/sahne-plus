@@ -120,7 +120,7 @@ body.web .shell { height: 100%; padding-top: 14px; }
 .grid .full { grid-column: 1 / -1; }
 label.lbl, .field > label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
 .field { min-width: 0; }
-input[type=text], input[type=number], input[type=url], select, textarea {
+input[type=text], input[type=number], input[type=url], input[type=password], select, textarea {
   width: 100%; height: 40px; background: var(--surface-control); border: 1px solid var(--border); color: var(--text); border-radius: var(--r-ctl); padding: 0 12px; outline: none; transition: border-color .15s, box-shadow .15s;
 }
 textarea { height: auto; padding: 10px 12px; }

@@ -2,6 +2,10 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
+## Unreleased
+
+- Changed: the KickBot widget-link fields («راه‌اندازی اولیه» and «تغییر اتصال») are now masked like the StreamElements token field and are emptied once the connection succeeds. The link contains the widget key, so it no longer stays readable on screen when you share your screen or stream the app window. Masked fields (this one and the StreamElements token) now also get the normal field style instead of a small white box.
+
 ## 1.3.7 — 2026-09-28
 
 - Fixed: a KickBot donation whose payment was captured while the last Browser Source closed (OBS closed, the source refreshed, or hidden with "Shutdown source when not visible") was marked as played but shown to nobody, and never came back. It now goes back to the front of the queue, is not marked as played, and plays once a Browser Source connects, without a second capture request (thanks [SoroushRF](https://github.com/SoroushRF), [#8](https://github.com/AmirEyZed/sahne-plus/pull/8)).

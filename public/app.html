@@ -86,7 +86,7 @@
       <div class="card setup" id="setupCard" hidden style="margin-bottom: 1rem;">
         <h3><svg><use href="#i-link"/></svg>راه‌اندازی اولیه</h3>
         <p class="hint" style="margin:0 0 12px">لینک ویجت دونیت کیک‌بات خودت رو اینجا بچسبون (داشبورد KickBot → Tipping → Widget URL؛ لینکی شبیه <code>https://widgets.kickbot.com/external/tipping/…</code>).</p>
-        <div class="url"><input type="text" id="setupUrl" placeholder="https://widgets.kickbot.com/external/tipping/xxxxxxxx%3Axxxxxxxx"><button class="btn primary" id="btnSetup">اتصال</button></div>
+        <div class="url"><input type="password" id="setupUrl" placeholder="https://widgets.kickbot.com/external/tipping/xxxxxxxx%3Axxxxxxxx" autocomplete="off"><button class="btn primary" id="btnSetup">اتصال</button></div>
         <p class="hint" id="setupMsg"></p>
       </div>
       <div class="bento">
@@ -259,7 +259,7 @@
           <div class="kv"><b>Streamer ID</b><span class="num" id="kbStreamer">—</span></div>
           <div class="kv"><b>کلید ویجت (Secret)</b><span id="kbSecret" class="hint" style="margin:0">—</span></div>
           <p class="hint">کلید ویجت هرگز نمایش داده نمی‌شود، در لاگ نمی‌آید و در صورت پشتیبانی ویندوز به‌صورت رمزنگاری‌شده (DPAPI) ذخیره می‌شود. هر کسی که این لینک را داشته باشد می‌تواند رویدادهای دونیت شما را دریافت کند؛ آن را با کسی به اشتراک نگذارید.</p>
-          <div class="field" style="margin:10px 0"><label>تغییر اتصال: لینک ویجت جدید</label><div class="url"><input type="text" id="setupUrl2" placeholder="https://widgets.kickbot.com/external/tipping/…" autocomplete="off"><button class="btn" id="btnSetup2">اتصال</button></div><span class="hint" id="setupMsg2"></span></div>
+          <div class="field" style="margin:10px 0"><label>تغییر اتصال: لینک ویجت جدید</label><div class="url"><input type="password" id="setupUrl2" placeholder="https://widgets.kickbot.com/external/tipping/…" autocomplete="off"><button class="btn" id="btnSetup2">اتصال</button></div><span class="hint" id="setupMsg2"></span></div>
           <div class="row"><button class="btn danger" id="btnDisconnect"><svg><use href="#i-x"/></svg>قطع اتصال و حذف کلید کیک‌بات</button></div>
         </div>
         <div class="card span-6">
