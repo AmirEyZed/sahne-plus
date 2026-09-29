@@ -1038,6 +1038,32 @@ test('secret input fields (KickBot widget URL, StreamElements token) are masked 
   assert.match(css, /^input\[type=text\][^{]*input\[type=password\][^{]*\{/m, 'password inputs share the field style');
 });
 
+test('doSetup empties both widget URL fields when the connection succeeds and keeps them when it fails', async () => {
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  // app.js is a browser script (it wires the whole page on load), so run just this function against stubs.
+  const src = js.match(/async function doSetup\([^)]*\) \{[\s\S]*?\n\}\n/);
+  assert.ok(src, 'doSetup exists');
+  for (const from of ['#setupUrl', '#setupUrl2']) {
+    for (const ok of [true, false]) {
+      const fields = { '#setupUrl': { value: 'first' }, '#setupUrl2': { value: 'second' }, '#msg': {} };
+      const sent = [];
+      const doSetup = new Function('$', 'post', 'toast', 'load', src[0] + '\nreturn doSetup;')(
+        sel => fields[sel],
+        async (url, body) => (
+          sent.push(body.url),
+          ok ? { ok: true, streamer_id: 1 } : { ok: false, error: 'bad link' }
+        ),
+        () => {},
+        () => {}
+      );
+      await doSetup(from, '#msg');
+      assert.deepEqual(sent, [from === '#setupUrl' ? 'first' : 'second'], 'the field that was used is submitted');
+      const kept = [fields['#setupUrl'].value, fields['#setupUrl2'].value];
+      assert.deepEqual(kept, ok ? ['', ''] : ['first', 'second'], from + (ok ? ' success' : ' failure'));
+    }
+  }
+});
+
 test('in-app legal documents are identical to the repository copies', () => {
   const root = path.join(__dirname, '..');
   const pairs = [
