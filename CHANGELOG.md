@@ -2,6 +2,11 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
+## Unreleased
+
+- New: **آمار (Analytics)** page. From the moment this version is installed, every donation whose alert is shown is recorded locally (id, time, donor, amount + currency, toman value and rate at that instant, kind, source, whether the alert played) and the page aggregates it: totals in dollar and toman, count, average, median, largest, smallest, unique / repeat / new / returning donors, daily and hourly activity, top donors, amount buckets, per-kind and per-source breakdown, and a weekday × hour heatmap (hidden while the sample is too small to mean anything). Ranges: today, this week (Saturday-anchored), this month (Persian calendar), or a custom span. Toman values are the ones recorded at donation time, not today's rate — the page says so explicitly. History is bounded: one file per month, at most 5000 events a day, months older than the newest three collapsed into a monthly summary.
+- New: `/api/analytics` (read-only) and `analytics-ui.js`. The page is computed entirely on this computer from the app's own data; nothing leaves it. See PRIVACY.md and docs/DATA_FLOW.md.
+- New: a Settings switch «ثبت تاریخچه‌ی دونیت‌ها روی این کامپیوتر» under «برنامه» stops recording the donation history. It is on by default; switching it off writes nothing new and keeps what was already recorded (delete it with «پاک کردن همه‌ی داده‌های برنامه»). PRIVACY.md section 3 describes the history, its files and its bounds.
 ## 1.3.8 — 2026-09-30
 
 - Fixed: a paid KickBot donation that was waiting for a Browser Source (all Browser Sources closed while its payment was captured) was lost if the app was closed before a Browser Source connected again. It is now kept in `captured.json` next to `played.json`, plays after a restart without a second capture request, and the file is deleted once it has played or left the queue (thanks [SoroushRF](https://github.com/SoroushRF), [#10](https://github.com/AmirEyZed/sahne-plus/pull/10)).
