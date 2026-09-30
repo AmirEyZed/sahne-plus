@@ -902,15 +902,18 @@ function createServer(opts) {
   }
   function handleEvent(type, raw) {
     if (type === 'pulse') return;
-    const p = type.startsWith('tip_') ? normalizeTip(raw) : raw;
-    if (type !== 'tip_play' && type !== 'tip_end')
-      log('info', 'ایونت: ' + type, type.startsWith('tip_') ? tipSummary(p) : p);
+    // the queue settings event is not a tip: normalizeTip() would drop all of its fields
+    const isTip = type.startsWith('tip_') && type !== 'tip_queue_config_updated';
+    const p = isTip ? normalizeTip(raw) : raw;
+    if (type !== 'tip_play' && type !== 'tip_end') log('info', 'ایونت: ' + type, isTip ? tipSummary(p) : p);
     switch (type) {
       case 'tip_queue_config_updated':
-        queueMode = p.queue_mode ?? queueMode;
+        // same fields the official widget reads; only values of the expected type are taken
+        if (typeof p.queue_mode === 'string') queueMode = p.queue_mode.slice(0, 20);
         queueDelay = finite(p.queue_delay, 0, 600, queueDelay);
-        queueStatus = p.queue_status ?? queueStatus;
-        tippingEnabled = p.is_active ?? tippingEnabled;
+        if (p.queue_status === 'play' || p.queue_status === 'pause') queueStatus = p.queue_status;
+        if (typeof p.is_active === 'boolean') tippingEnabled = p.is_active;
+        tryNext(); // like queue_play: a queue switched back to play does not wait for the next event
         break;
       case 'queue_play':
         queueStatus = 'play';

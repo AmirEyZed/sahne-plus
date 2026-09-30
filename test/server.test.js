@@ -1023,6 +1023,125 @@ test('disconnecting KickBot drops only its own tips (dashboard tests too); Kick 
   assert.equal(JSON.parse((await req('GET', '/api/config')).body).config.kickbot.configured, false);
 });
 
+test('KickBot queue settings (pause/play, delay, mode, tipping on/off) are applied; values of the wrong type are ignored', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sahne-test-'));
+  const port = 8900 + Math.floor(Math.random() * 100);
+  fs.writeFileSync(
+    path.join(dir, 'config.json'),
+    JSON.stringify({
+      port,
+      secret_id: 'a'.repeat(32) + ':' + 'b'.repeat(32),
+      streamer_id: 1,
+      rate: { auto: false, manual: 100000 },
+      kick: { enabled: false },
+      app: { autostart: false }
+    })
+  );
+  const captures = [];
+  const srv = createServer({
+    dataDir: dir,
+    publicDir: path.join(__dirname, '..', 'public'),
+    appVersion: 'test',
+    testHooks: {
+      offline: true,
+      captureTip: async tip => {
+        captures.push(tip.stripe_pi_id);
+        return 'ok';
+      }
+    }
+  });
+  await srv.start();
+  let overlay = null;
+  t.after(async () => {
+    if (overlay) overlay.destroy();
+    await srv.stop();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const waitFor = async (cond, what) => {
+    for (const end = Date.now() + 3000; Date.now() < end; await sleep(10)) if (await cond()) return;
+    assert.fail('timed out waiting for: ' + what);
+  };
+  const req = (method, p) =>
+    new Promise((resolve, reject) =>
+      http
+        .request({ host: '127.0.0.1', port, path: p, method, headers: { Origin: `http://127.0.0.1:${port}` } }, res => {
+          let d = '';
+          res.on('data', c => (d += c));
+          res.on('end', () => resolve(JSON.parse(d)));
+        })
+        .on('error', reject)
+        .end()
+    );
+  const settings = async () => {
+    const s = (await req('GET', '/api/config')).state;
+    return [s.queueStatus, s.queueDelay, s.queueMode, s.tippingEnabled];
+  };
+  const events = [];
+  overlay = http.get({ host: '127.0.0.1', port, path: '/events?role=overlay' }, res => {
+    res.setEncoding('utf8');
+    res.on('data', c => events.push(c));
+  });
+  overlay.on('error', () => {});
+  const plays = () =>
+    events
+      .join('')
+      .split('\n')
+      .filter(l => l.startsWith('data: ') && l.includes('"type":"play"'))
+      .map(l => JSON.parse(l.slice(6)).tip.id);
+  await waitFor(async () => (await req('GET', '/api/config')).state.overlays === 1, 'the Browser Source to register');
+  const kb = id => ({
+    stripe_pi_id: id,
+    tipper_name: 'Donor',
+    amount_total: 500,
+    approval_status: 'approved',
+    created_at: new Date().toISOString()
+  });
+
+  // KickBot sends its queue settings (the fields the official widget reads): paused, no delay, manual mode, tipping off
+  assert.deepEqual(await settings(), ['play', 5, 'automatic', true], 'defaults');
+  srv.testHooks.kickbotEvent('tip_queue_config_updated', {
+    queue_mode: 'manual',
+    queue_delay: 0,
+    queue_status: 'pause',
+    is_active: false
+  });
+  assert.deepEqual(await settings(), ['pause', 0, 'manual', false], 'every setting is applied');
+
+  // a paused queue holds an approved tip: it is not captured or shown
+  srv.testHooks.kickbotEvent('tip_initiated', kb('pi_a'));
+  assert.deepEqual(captures, [], 'nothing is captured while the queue is paused');
+  assert.deepEqual(srv.testHooks.queueIds(), ['pi_a']);
+
+  // switching back to play through the settings event plays it without waiting for another event
+  srv.testHooks.kickbotEvent('tip_queue_config_updated', {
+    queue_mode: 'manual',
+    queue_delay: 0,
+    queue_status: 'play',
+    is_active: true
+  });
+  await waitFor(() => plays().includes('pi_a'), 'the held tip to play');
+
+  // the delay of 0 applies: after the alert ends, the next tip plays at once (the default gap is 5 s)
+  await req('POST', '/api/skip');
+  srv.testHooks.kickbotEvent('tip_initiated', kb('pi_b'));
+  await waitFor(() => plays().includes('pi_b'), 'the next tip to play without the default 5 s gap');
+  assert.deepEqual(captures, ['pi_a', 'pi_b']);
+
+  // values of the wrong type or outside the known set are ignored, and the delay is clamped
+  srv.testHooks.kickbotEvent('tip_queue_config_updated', {
+    queue_mode: { x: 1 },
+    queue_delay: 'soon',
+    queue_status: 'stop',
+    is_active: 'yes'
+  });
+  assert.deepEqual(await settings(), ['play', 0, 'manual', true], 'invalid values change nothing');
+  srv.testHooks.kickbotEvent('tip_queue_config_updated', { queue_delay: 99999, queue_mode: 'x'.repeat(100) });
+  const [, delay, mode] = await settings();
+  assert.equal(delay, 600, 'the delay is clamped to 600 s');
+  assert.equal(mode.length, 20, 'the mode string is bounded');
+});
+
 test('secret input fields (KickBot widget URL, StreamElements token) are masked and styled', () => {
   const root = path.join(__dirname, '..');
   const html = fs.readFileSync(path.join(root, 'public', 'app.html'), 'utf8');

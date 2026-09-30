@@ -2,6 +2,10 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
+## Unreleased
+
+- Fixed: the tip-queue settings KickBot sends when they change (the delay between alerts, queue mode, tipping on/off, and the play/pause state sent with them) were dropped, so the app always waited its default 5 seconds between alerts. They now apply as soon as KickBot sends them, and a queue switched back to play continues at once. Values of the wrong type are ignored.
+
 ## 1.3.8 — 2026-09-30
 
 - Fixed: a paid KickBot donation that was waiting for a Browser Source (all Browser Sources closed while its payment was captured) was lost if the app was closed before a Browser Source connected again. It is now kept in `captured.json` next to `played.json`, plays after a restart without a second capture request, and the file is deleted once it has played or left the queue (thanks [SoroushRF](https://github.com/SoroushRF), [#10](https://github.com/AmirEyZed/sahne-plus/pull/10)).
