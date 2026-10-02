@@ -28,6 +28,14 @@ npm start
 
 Test instances do not touch Meld Studio layers and do not register autostart.
 
+To capture screenshots of that running instance, pass the output directory and its configured port:
+
+```bash
+npm run screenshots -- release/screenshots 7799
+```
+
+The screenshot script defaults to port 7788 when the port argument is omitted. It accepts an integer from 1024 to 65535, matching the server's configured-port range. Keep screenshots free of secrets and personal data.
+
 ## Project layout
 
 | Path | What |
