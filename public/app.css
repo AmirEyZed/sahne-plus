@@ -196,6 +196,8 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
 .inspector .thumb video, .inspector .thumb img { width: 100%; height: 100%; object-fit: contain; }
 .inspector .file-meta { color: var(--muted); font-size: 11px; font-family: var(--latin); direction: ltr; text-align: start; word-break: break-all; }
 .inspector .fields { display: flex; flex-direction: column; gap: 10px; }
+.inspector input[aria-invalid=true] { border-color: var(--danger); }
+#iRangeError { color: var(--danger); margin: 0; }
 .inspector .foot { margin-top: auto; display: flex; gap: 8px; }
 .saved { font-size: 11px; color: var(--success); opacity: 0; transition: opacity .2s; }
 .saved.show { opacity: 1; }

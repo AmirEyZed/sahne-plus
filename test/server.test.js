@@ -1183,6 +1183,326 @@ test('doSetup empties both widget URL fields when the connection succeeds and ke
   }
 });
 
+test('edited media amount ranges are validated atomically and old entries remain repairable', async t => {
+  const listener = http.createServer();
+  await new Promise(resolve => listener.listen(0, '127.0.0.1', resolve));
+  const port = listener.address().port;
+  await new Promise(resolve => listener.close(resolve));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sahne-ranges-'));
+  const configPath = path.join(dir, 'config.json');
+  const files = [
+    { id: '1'.repeat(10), file: 'one.webm', name: 'one', minToman: 10, maxToman: 20, minAmount: 1, maxAmount: 2 },
+    { id: '2'.repeat(10), file: 'two.webm', name: 'two', minToman: 30, maxToman: 10, minAmount: 3, maxAmount: 1 }
+  ];
+  fs.writeFileSync(configPath, JSON.stringify({ port, files, rate: { auto: false }, kick: { enabled: false } }));
+  const options = {
+    dataDir: dir,
+    publicDir: path.join(__dirname, '..', 'public'),
+    testHooks: { offline: true }
+  };
+  let srv = createServer(options);
+  t.after(async () => {
+    await srv.stop();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  await srv.start();
+  const req = (method, route, body) =>
+    new Promise((resolve, reject) => {
+      const r = http.request(
+        {
+          host: '127.0.0.1',
+          port,
+          path: route,
+          method,
+          agent: false,
+          headers: { Origin: `http://127.0.0.1:${port}`, 'Content-Type': 'application/json' }
+        },
+        res => {
+          let data = '';
+          res.on('data', chunk => {
+            data += chunk;
+          });
+          res.on('end', () => resolve({ status: res.statusCode, ...JSON.parse(data) }));
+        }
+      );
+      r.on('error', reject);
+      r.end(body ? JSON.stringify(body) : undefined);
+    });
+  const getConfig = async () => (await req('GET', '/api/config')).config;
+  assert.equal((await getConfig()).files.length, 2, 'inverted legacy entries are retained on load');
+  for (const [method, route] of [
+    ['PATCH', '/api/file'],
+    ['POST', '/api/config']
+  ]) {
+    const edit = changes =>
+      req(
+        method,
+        route,
+        method === 'PATCH' ? { id: files[0].id, ...changes } : { files: [{ id: files[0].id, ...changes }] }
+      );
+    for (const [min, max] of [
+      ['minToman', 'maxToman'],
+      ['minAmount', 'maxAmount']
+    ]) {
+      for (const changes of [{ [min]: 50 }, { [max]: 0 }, { [min]: 50, [max]: 49 }]) {
+        const before = await getConfig(),
+          disk = fs.readFileSync(configPath, 'utf8');
+        const result = await edit(changes);
+        assert.equal(result.status, 400, `${method}: ${JSON.stringify(changes)}`);
+        assert.equal(result.code, 'invalid_amount_range');
+        assert.match(result.error, /حداقل/);
+        assert.deepEqual(await getConfig(), before, 'rejection leaves memory unchanged');
+        assert.equal(fs.readFileSync(configPath, 'utf8'), disk, 'rejection leaves disk unchanged');
+      }
+      for (const changes of [
+        { [min]: 0, [max]: 0 },
+        { [min]: 10, [max]: 10 },
+        { [min]: 50, [max]: null },
+        { [max]: '' }
+      ])
+        assert.equal((await edit(changes)).status, 200, 'equal bounds and empty maximum are valid');
+      assert.equal((await edit({ [min]: 1, [max]: 2 })).status, 200);
+    }
+  }
+  const before = await getConfig(),
+    disk = fs.readFileSync(configPath, 'utf8');
+  const badBatch = await req('POST', '/api/config', {
+    mode: 'highest',
+    appearance: { cardDelay: 59 },
+    files: [
+      { id: files[0].id, name: 'changed', minToman: 100, maxToman: 200 },
+      { id: files[1].id, minToman: 50, maxToman: 10 }
+    ]
+  });
+  assert.equal(badBatch.status, 400);
+  assert.deepEqual(await getConfig(), before, 'no earlier file or other setting is partially committed');
+  assert.equal(fs.readFileSync(configPath, 'utf8'), disk);
+  assert.equal(
+    (
+      await req('POST', '/api/config', {
+        files: [
+          { id: files[0].id, minToman: 10, maxToman: 20 },
+          { id: files[0].id, maxToman: 5 }
+        ]
+      })
+    ).status,
+    400,
+    'duplicate ids are checked against the staged update'
+  );
+  assert.deepEqual(await getConfig(), before);
+  assert.equal(
+    (
+      await req('POST', '/api/config', {
+        files: [
+          { id: files[0].id, minToman: 10, maxToman: 20 },
+          { id: files[0].id, maxToman: 30 },
+          { id: 'unknown', minToman: 50, maxToman: 1 }
+        ]
+      })
+    ).status,
+    200
+  );
+  let current = (await getConfig()).files[0];
+  assert.equal(current.minToman, 10);
+  assert.equal(current.maxToman, 30);
+  assert.equal(
+    (await req('PATCH', '/api/file', { id: files[1].id, name: 'repair later' })).status,
+    200,
+    'unrelated edits do not hide or discard an old invalid range'
+  );
+  assert.equal((await req('PATCH', '/api/file', { id: files[1].id, maxToman: 30 })).status, 200);
+  assert.equal((await req('PATCH', '/api/file', { id: files[1].id, maxAmount: null })).status, 200);
+  assert.equal(
+    (await req('PATCH', '/api/file', { id: files[0].id, minToman: 10.4, maxToman: 10.3 })).status,
+    200,
+    'comparison uses the existing integer normalization'
+  );
+  assert.equal((await req('PATCH', '/api/file', { id: files[0].id, minToman: null, maxToman: 0 })).status, 200);
+  assert.equal((await req('POST', '/api/config', { files: [] })).status, 200);
+  await srv.stop();
+  srv = createServer(options);
+  await srv.start();
+  current = (await getConfig()).files;
+  assert.equal(current.length, 2);
+  assert.equal(current[1].minToman, 30);
+  assert.equal(current[1].maxToman, 30);
+  assert.equal(current[1].maxAmount, null, 'repairs persist across restart');
+});
+
+test('inspector range validation keeps drafts editable and autosave reflects only the current draft', async t => {
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const src = js.split('// ---------- inspector ----------')[1].split('// ---------- look ----------')[0];
+  function harness() {
+    const elements = new Map(),
+      timers = new Map(),
+      calls = [],
+      notices = [];
+    let timerId = 0;
+    const $ = sel => {
+      if (sel === '#insThumb video') return null;
+      if (!elements.has(sel)) {
+        const classes = new Set();
+        elements.set(sel, {
+          value: '',
+          checked: false,
+          hidden: false,
+          textContent: '',
+          validity: { badInput: false },
+          attributes: {},
+          classList: { add: c => classes.add(c), remove: c => classes.delete(c), contains: c => classes.has(c) },
+          setAttribute(k, v) {
+            this.attributes[k] = v;
+          },
+          setCustomValidity(v) {
+            this.validationMessage = v;
+          },
+          addEventListener(event, callback) {
+            this[event] = callback;
+          }
+        });
+      }
+      return elements.get(sel);
+    };
+    const CFG = {
+      files: [
+        { id: 'one', file: 'one.webm', type: 'video', name: 'one', minToman: 10, maxToman: 20 },
+        { id: 'two', file: 'two.webm', type: 'video', name: 'two', minToman: 30, maxToman: 10 }
+      ]
+    };
+    const api = new Function(
+      'CFG',
+      '$',
+      '$$',
+      'patch',
+      'setTimeout',
+      'clearTimeout',
+      'fmtSize',
+      'fmtToman',
+      'typeLabel',
+      'renderFiles',
+      'toast',
+      'let selectedId = null;\n' + src + '\nreturn { selectFile, closeInspector };'
+    )(
+      CFG,
+      $,
+      () => [],
+      (route, body) => new Promise(resolve => calls.push({ route, body, resolve })),
+      (fn, ms) => {
+        const id = ++timerId;
+        timers.set(id, { fn, ms });
+        return id;
+      },
+      id => timers.delete(id),
+      String,
+      String,
+      {},
+      () => {},
+      (...args) => notices.push(args)
+    );
+    const input = (sel, value) => {
+      $(sel).value = String(value);
+      $(sel).input();
+    };
+    const save = () => {
+      const entry = [...timers].find(([, v]) => v.ms === 350);
+      assert.ok(entry, 'a valid draft has a pending save');
+      timers.delete(entry[0]);
+      return entry[1].fn();
+    };
+    return { ...api, $, CFG, input, save, calls, notices, timers };
+  }
+  await t.test(
+    'invalid and transient drafts send no request; correction, equality and unlimited maximum save',
+    async () => {
+      const h = harness();
+      h.selectFile('one');
+      h.input('#iMin', 30);
+      assert.equal(h.timers.size, 0);
+      assert.equal(h.$('#iRangeError').hidden, false);
+      assert.equal(h.$('#iMin').attributes['aria-invalid'], 'true');
+      assert.ok(h.$('#iMax').validationMessage);
+      h.input('#iName', 'new name');
+      assert.equal(h.calls.length, 0);
+      assert.equal(h.timers.size, 0, 'unrelated input cannot bypass an invalid range');
+      assert.equal(h.CFG.files[0].minToman, 10);
+      for (const max of ['30', '', '0']) {
+        if (max === '0') h.input('#iMin', '');
+        h.input('#iMax', max);
+        assert.equal(h.$('#iRangeError').hidden, true);
+        const pending = h.save(),
+          call = h.calls.at(-1);
+        assert.equal(call.body.maxToman, max === '' ? null : Number(max));
+        call.resolve({ ok: true, file: call.body });
+        await pending;
+        assert.equal(h.$('#insSaved').classList.contains('show'), true);
+      }
+      h.$('#iMin').validity.badInput = true;
+      h.input('#iMin', '');
+      assert.equal(
+        [...h.timers.values()].some(v => v.ms === 350),
+        false
+      );
+      assert.equal(h.$('#insSaved').classList.contains('show'), false);
+      assert.equal(h.$('#iRangeError').hidden, false);
+      assert.equal(h.notices.length, 0);
+    }
+  );
+  await t.test('old invalid entries open for repair and selecting or closing cancels pending saves', () => {
+    const h = harness();
+    h.selectFile('two');
+    assert.equal(h.$('#iMin').value, 30);
+    assert.equal(h.$('#iRangeError').hidden, false);
+    h.input('#iMax', 30);
+    h.selectFile('one');
+    assert.equal(h.timers.size, 0);
+    assert.equal(h.$('#iRangeError').hidden, true);
+    h.input('#iName', 'changed');
+    h.closeInspector();
+    assert.equal(h.timers.size, 0);
+    assert.equal(h.calls.length, 0);
+  });
+  await t.test('in-flight saves do not show saved for a later invalid draft or a different selection', async () => {
+    const h = harness();
+    h.selectFile('one');
+    h.input('#iMin', 15);
+    const pending = h.save();
+    h.input('#iMin', 30);
+    h.calls[0].resolve({ ok: true, file: h.calls[0].body });
+    await pending;
+    assert.equal(h.CFG.files[0].minToman, 15, 'last valid response updates the saved configuration');
+    assert.equal(h.$('#iMin').value, '30', 'invalid draft remains editable');
+    assert.equal(h.$('#iRangeError').hidden, false);
+    assert.equal(h.$('#insSaved').classList.contains('show'), false);
+    h.input('#iMax', 30);
+    const next = h.save();
+    h.selectFile('two');
+    h.calls[1].resolve({ ok: true, file: h.calls[1].body });
+    await next;
+    assert.equal(h.$('#insSaved').classList.contains('show'), false);
+    assert.equal(h.$('#iRangeError').hidden, false);
+  });
+  await t.test('server rejection is inline and a stale rejection cannot replace the current error', async () => {
+    const h = harness();
+    h.selectFile('one');
+    h.input('#iName', 'edited');
+    const pending = h.save();
+    h.calls[0].resolve({ code: 'invalid_amount_range', error: 'range rejected' });
+    await pending;
+    assert.equal(h.$('#iRangeError').textContent, 'range rejected');
+    assert.equal(h.CFG.files[0].name, 'one');
+    assert.equal(h.$('#iName').value, 'edited');
+    assert.equal(h.notices.length, 0);
+    h.input('#iName', 'edited again');
+    const next = h.save();
+    h.selectFile('two');
+    const message = h.$('#iRangeError').textContent;
+    h.calls[1].resolve({ code: 'invalid_amount_range', error: 'stale rejection' });
+    await next;
+    assert.equal(h.$('#iRangeError').textContent, message);
+    assert.equal(h.notices.length, 0);
+  });
+});
+
 test('in-app legal documents are identical to the repository copies', () => {
   const root = path.join(__dirname, '..');
   const pairs = [
