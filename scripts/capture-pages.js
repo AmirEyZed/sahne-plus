@@ -1,11 +1,17 @@
-// Captures poster-quality screenshots of the running Sahne Plus (http://127.0.0.1:7788) with a separate Electron window.
-// Run: node_modules/.bin/electron scripts/capture-pages.js [outDir]
+// Captures poster-quality screenshots of the running Sahne Plus with a separate Electron window.
+// Run: npm run screenshots -- [outDir] [port] (port defaults to 7788).
 'use strict';
 const { app, BrowserWindow } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const OUT = path.resolve(process.argv[2] || path.join(__dirname, '..', 'release', 'screenshots'));
-const BASE = 'http://127.0.0.1:7788';
+const portArg = process.argv[3] ?? '7788';
+const port = /^\d+$/.test(portArg) ? Number(portArg) : NaN;
+if (!Number.isInteger(port) || port < 1024 || port > 65535) {
+  console.error('Invalid screenshot port: expected an integer from 1024 to 65535.');
+  app.exit(1);
+}
+const BASE = `http://127.0.0.1:${port}`;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 app.setPath('userData', path.join(app.getPath('temp'), 'sahne-plus-capture'));
 
