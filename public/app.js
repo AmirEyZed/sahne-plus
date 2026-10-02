@@ -217,7 +217,7 @@ function renderKb() {
   $('#kbSecret').textContent = kb.configured
     ? kb.secretStorage === 'os'
       ? 'ذخیره شده (رمزنگاری‌شده با ویندوز)'
-      : 'ذخیره شده (بدون رمزنگاری؛ DPAPI در دسترس نیست)'
+      : 'ذخیره شده (بدون رمزنگاری)'
     : 'وارد نشده';
   $('#btnDisconnect').disabled = !kb.configured;
   renderSe();
@@ -248,7 +248,7 @@ function renderSe() {
   $('#seSecret').textContent = se.configured
     ? se.secretStorage === 'os'
       ? 'ذخیره شده (رمزنگاری‌شده با ویندوز)'
-      : 'ذخیره شده (بدون رمزنگاری؛ DPAPI در دسترس نیست)'
+      : 'ذخیره شده (بدون رمزنگاری)'
     : 'وارد نشده';
   $('#btnSeDisconnect').disabled = !se.configured;
 }
@@ -297,7 +297,9 @@ function fillApp() {
   $('#abSecret').textContent =
     CFG.kickbot && CFG.kickbot.secretStorage === 'os'
       ? 'رمزنگاری‌شده با ویندوز (DPAPI)'
-      : 'متن ساده در config.json (DPAPI در دسترس نیست)';
+      : CFG.kickbot && CFG.kickbot.secretStorage === 'plain'
+        ? 'متن ساده در config.json (بدون رمزنگاری)'
+        : 'کلید ویجت وارد نشده';
   $('#abSec').textContent = INFO ? INFO.securityContact : '—';
 }
 $('#btnDisconnect').onclick = async () => {

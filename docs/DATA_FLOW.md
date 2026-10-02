@@ -75,7 +75,7 @@ Electron/Chromium platform traffic: the app does not set Google API keys, does n
 
 | Path | Read / write | Content | Sensitivity |
 |---|---|---|---|
-| `Documents\Sahne Plus\config.json` | R/W (atomic write via `.tmp` + rename) | settings, file tiers, Kick channel, rate, `secret_id_enc` | contains the **encrypted** KickBot secret (DPAPI); plaintext only if DPAPI is unavailable (`secretStorage:'plain'`, shown in the UI) |
+| `Documents\Sahne Plus\config.json` | R/W (atomic write via `.tmp` + rename) | settings, file tiers, Kick channel, rate, `secret_id_enc`, optional `se_token_enc` | KickBot key and StreamElements token use DPAPI independently; if unavailable or encryption fails, the corresponding `secret_id` / `se_token` field is plaintext. Each connection's `secretStorage` in `/api/config` reports its own loaded or successfully saved credential (`os`, `plain`, or `none` when no usable credential is loaded); the legacy state-level field describes KickBot only. Startup retries encryption for legacy plaintext credentials when DPAPI is available. A failed atomic save leaves the reported storage status unchanged. |
 | `Documents\Sahne Plus\config.json.corrupt-<ts>` | W | copy of an unparsable config | same as above |
 | `Documents\Sahne Plus\media\*` | R/W | imported alert media (copied; the source file is never touched) | user content |
 | `Documents\Sahne Plus\played.json` | R/W | last 1000 played tip ids | low |

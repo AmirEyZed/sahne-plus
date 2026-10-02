@@ -452,6 +452,7 @@ function createServer(opts) {
   let secret = ''; // in-memory only
   let seToken = ''; // StreamElements JWT, in-memory only
   let secretStorage = 'none'; // 'os' (DPAPI via Electron safeStorage) | 'plain' (fallback) | 'none'
+  let seTokenStorage = 'none'; // tracked independently: encrypting one credential can succeed while the other fails
   let config = loadConfig();
   function loadConfig() {
     let c = {},
@@ -485,24 +486,31 @@ function createServer(opts) {
     if (c.secret_id_enc && store && store.available()) {
       try {
         secret = String(store.decrypt(c.secret_id_enc) || '');
-        secretStorage = 'os';
+        secretStorage = secret ? 'os' : 'none';
       } catch {
         secret = '';
       }
     } else if (typeof c.secret_id === 'string' && c.secret_id) {
       secret = c.secret_id;
-      secretStorage = store && store.available() ? 'os' : 'plain';
-    } else secretStorage = store && store.available() ? 'os' : 'plain';
+      secretStorage = 'plain';
+    }
     delete merged.secret_id;
     delete merged.secret_id_enc;
     if (c.se_token_enc && store && store.available()) {
       try {
         seToken = String(store.decrypt(c.se_token_enc) || '');
+        seTokenStorage = seToken ? 'os' : 'none';
       } catch {
         seToken = '';
       }
-    } else if (typeof c.se_token === 'string' && c.se_token) seToken = c.se_token;
-    if (!seTokenOk(seToken)) seToken = '';
+    } else if (typeof c.se_token === 'string' && c.se_token) {
+      seToken = c.se_token;
+      seTokenStorage = 'plain';
+    }
+    if (!seTokenOk(seToken)) {
+      seToken = '';
+      seTokenStorage = 'none';
+    }
     delete merged.se_token;
     delete merged.se_token_enc;
     if (!/^[A-Za-z0-9]{1,64}$/.test(String(merged.se.channelId || ''))) merged.se.channelId = null;
@@ -523,14 +531,11 @@ function createServer(opts) {
       if (store && store.available()) {
         try {
           out.secret_id_enc = store.encrypt(secret);
-          secretStorage = 'os';
         } catch {
           out.secret_id = secret;
-          secretStorage = 'plain';
         }
       } else {
         out.secret_id = secret;
-        secretStorage = 'plain';
       }
     }
     if (seToken) {
@@ -550,8 +555,12 @@ function createServer(opts) {
   function saveConfig() {
     try {
       const tmp = CFG_PATH + '.tmp';
-      fs.writeFileSync(tmp, JSON.stringify(serializedConfig(), null, 2));
+      const out = serializedConfig();
+      fs.writeFileSync(tmp, JSON.stringify(out, null, 2));
       fs.renameSync(tmp, CFG_PATH);
+      // Report the committed fields, not OS availability or an unsuccessful save attempt.
+      secretStorage = out.secret_id_enc ? 'os' : out.secret_id ? 'plain' : 'none';
+      seTokenStorage = out.se_token_enc ? 'os' : out.se_token ? 'plain' : 'none';
     } catch (e) {
       log('error', 'ذخیره‌ی config.json ناموفق بود', e.message);
     }
@@ -565,7 +574,7 @@ function createServer(opts) {
         configured: !!(seToken && config.se.channelId),
         username: config.se.username,
         provider: config.se.provider,
-        secretStorage
+        secretStorage: seTokenStorage
       }
     };
   }
@@ -2568,11 +2577,16 @@ function createServer(opts) {
         log('info', 'حساب StreamElements وصل شد', {
           username: config.se.username,
           provider: config.se.provider,
-          secretStorage
+          secretStorage: seTokenStorage
         });
         seConnect();
         sendState();
-        return json(res, 200, { ok: true, username: config.se.username, provider: config.se.provider, secretStorage });
+        return json(res, 200, {
+          ok: true,
+          username: config.se.username,
+          provider: config.se.provider,
+          secretStorage: seTokenStorage
+        });
       }
       if (p === '/api/se/disconnect' && req.method === 'POST') {
         seDisconnect();
@@ -2677,7 +2691,7 @@ function createServer(opts) {
           data: DATA,
           secretStorage
         });
-        if ((secret || seToken) && secretStorage === 'os') saveConfig(); // migrates a legacy plaintext secret/token into the encrypted fields
+        if ((secret || seToken) && store && store.available()) saveConfig(); // migrates legacy plaintext credentials independently
         if (!(opts.testHooks && opts.testHooks.offline)) {
           // tests run fully offline
           connect();
