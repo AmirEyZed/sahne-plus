@@ -2,6 +2,10 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
+## Unreleased
+
+- Fixed: a media file could be saved with its minimum amount above its maximum, so it never matched an alert. Edited toman and legacy dollar ranges now reject that ordering without changing saved settings. The file inspector keeps an invalid draft editable, shows an inline error, and resumes autosave once the range is valid. Equal bounds and an empty maximum are allowed; existing entries remain available for correction.
+
 ## 1.3.9 — 2026-10-01
 
 - Fixed: the tip-queue settings KickBot sends when they change (the delay between alerts, queue mode, tipping on/off, and the play/pause state sent with them) were dropped, so the app always waited its default 5 seconds between alerts. They now apply as soon as KickBot sends them, and a queue switched back to play continues at once. Values of the wrong type are ignored. Note: a queue paused in KickBot holds every alert (Kick subs and StreamElements tips too) until it is set to play again, the same as the «توقف» state shown on the Home page (thanks [SoroushRF](https://github.com/SoroushRF), [#12](https://github.com/AmirEyZed/sahne-plus/pull/12)).
