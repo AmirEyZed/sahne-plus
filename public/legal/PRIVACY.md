@@ -1,6 +1,6 @@
 # Sahne Plus — Privacy Policy
 
-_Last updated: 2026-09-30 · Applies to Sahne Plus 1.1.0 and later (the update check exists since 1.3.1)_
+_Last updated: 2026-10-03 · Applies to Sahne Plus 1.1.0 and later (the update check exists since 1.3.1)_
 
 **خلاصه‌ی فارسی:** Sahne Plus هیچ سرور ابری ندارد. فایل‌های الرت، تنظیمات و لاگ‌ها فقط روی کامپیوتر شما (پوشه‌ی `Documents\Sahne Plus`) ذخیره می‌شوند. برنامه فقط به سرویس‌هایی وصل می‌شود که برای کارکردش لازم‌اند: کیک‌بات (دونیت‌ها)، فید چت عمومی کیک (ساب‌ها)، baha24.com یا bonbast.com (نرخ دلار) و از نسخه‌ی ۱.۳.۱ گیت‌هاب، فقط برای دیدن شماره‌ی آخرین نسخه (از «تنظیمات» قابل خاموش کردن است). هیچ آپدیتی بدون کلیک شما دانلود یا نصب نمی‌شود. آنالیتیکس، ردیابی، تبلیغات و گزارش خطای خودکار وجود ندارد. ما هیچ داده‌ای از شما دریافت یا فروش نمی‌کنیم، چون اصلاً به ما نمی‌رسد.
 
@@ -25,7 +25,7 @@ All application data lives in `Documents\Sahne Plus`:
 | Your StreamElements JWT token (optional, 1.3.4+) | `config.json` → `se_token_enc` | same protection as the KickBot key (DPAPI). This token controls your whole StreamElements account; the app only reads the tipping feed with it. Removed by «قطع اتصال و حذف توکن». |
 | Alert media you import (videos, images, sounds) | `media\` | copied into this folder; your original files are never modified or deleted |
 | Ids of the last 1000 alerts already shown | `played.json` | prevents replaying a donation after a restart |
-| A KickBot donation whose payment was already taken but that has not been shown yet (name, amount, message, TTS/GIF links) | `captured.json` | only exists while such a donation waits for a Browser Source (every Browser Source closed during the payment). It lets the donation still play after a restart, and is deleted once it plays or leaves the queue (rejected, queue cleared, KickBot disconnected) |
+| Waiting alerts: already-captured KickBot donations, real StreamElements tips, and real Kick subscriptions/gifts | `captured.json` (and `.tmp` during a write) | the first 500 eligible alerts, in queue order: id, source, name, amount, message, timestamp; KickBot GIF/TTS links; StreamElements currency; Kick kind, count, tags and fixed toman value. Test alerts and uncaptured KickBot donations are excluded. Local plaintext, retained without a time limit until playback starts or the alert leaves the queue. Queue clearing deletes all waiting alerts; disconnecting KickBot or StreamElements removes that provider's entries. Deleting application data removes the file and its temporary copy. |
 | Diagnostic log | `sahne-plus.log` | connection status, errors, and for each alert: donor/subscriber name, amount, message and the media used. The KickBot key is never written to the log. Rotates at 5 MB. |
 
 Electron (the runtime) keeps its own browser profile in `%APPDATA%\SahnePlus` (cache, the last opened page).
@@ -52,7 +52,7 @@ The Browser Source page (the page you add to OBS / Meld Studio) additionally loa
 
 ## 5. Data about other people
 
-Donation and subscription events contain the names and messages of your viewers. Sahne Plus shows them on your stream (that is its purpose), keeps the last 30 in memory for the "recent alerts" list, and writes them to the local log file. This data stays on your computer. You are responsible for how you use it in your broadcast.
+Donation and subscription events contain the names and messages of your viewers. Sahne Plus shows them on your stream (that is its purpose), keeps the last 30 in memory for the "recent alerts" list, and writes them to the local log file. Eligible waiting alerts also remain in `captured.json` across restarts as described above. This data stays on your computer. You are responsible for how you use it in your broadcast.
 
 ## 6. What we do not do
 
@@ -64,7 +64,7 @@ Donation and subscription events contain the names and messages of your viewers.
 
 ## 7. Deleting your data
 
-- **In the app:** Settings → "Clear application data" deletes `config.json`, `played.json`, `captured.json` and everything in `media\` (after a confirmation), then restarts the app. Settings → "Disconnect KickBot" removes only the widget key. "Reset settings" restores defaults without touching media.
+- **In the app:** Settings → "Clear application data" deletes `config.json`, `played.json`, `captured.json` and everything in `media\` (after a confirmation), then restarts the app. Settings → "Disconnect KickBot" removes the widget key and waiting KickBot alerts. Disconnecting StreamElements removes its token and waiting StreamElements alerts; other providers' waiting alerts stay queued. "Reset settings" restores defaults without touching media.
 - **Manually:** delete the folder `Documents\Sahne Plus`.
 - **Uninstalling** the application removes the program files and Electron's profile folder (`%APPDATA%\SahnePlus`) but **does not** delete `Documents\Sahne Plus`, so your media survives a reinstall.
 - **Autostart:** the uninstaller also removes the "run at Windows login" registry entry (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run\SahnePlus`), so nothing of the program is left in the registry.

@@ -80,10 +80,14 @@ Electron/Chromium platform traffic: the app does not set Google API keys, does n
 | `Documents\Sahne Plus\media\*` | R/W | imported alert media (copied; the source file is never touched) | user content |
 | `Documents\Sahne Plus\played.json` | R/W | last 1000 played tip ids | low |
 | `Documents\Sahne Plus\sahne-plus.log` (+ `.1`) | W, rotates at 5 MB | log lines: connection state, tip name / amount / message / media, errors. Secrets are redacted by `safe()` | donor names and messages (personal data of third parties, local only) |
-| `Documents\Sahne Plus\captured.json` | R/W (atomic write via `.tmp` + rename) | KickBot tips already captured but not shown yet (all Browser Sources closed during `capture_tip`): the normalized tip (id, donor name, amount, message, GIF/TTS URLs); restored to the front of the queue on start. Written only when that set changes, deleted when it is empty | donor names and messages (personal data of third parties, local only) |
+| `Documents\Sahne Plus\captured.json` (and `.tmp` while writing) | R/W (atomic write via `.tmp` + rename) | First 500 eligible waiting alerts in FIFO order: captured KickBot tips (legacy files remain readable), real StreamElements tips and real Kick sub/gift events. Whitelisted fields: id, name, message, amount, source, timestamp; KickBot approval/replay flags and GIF/TTS URLs; StreamElements currency; Kick kind/count/tags/toman override. Test alerts and uncaptured KickBot tips are excluded. Restored local alerts retain `is_local:true` and never call KickBot capture or publish. Snapshot updates when serialized content changes; deleted when empty | plaintext viewer names/messages, including gift recipient names (third-party personal data, local only); no provider credentials |
 | `%APPDATA%\SahnePlus\` | R/W by Chromium | Electron userData: cache, `Local Storage` (only `sp.page`), GPU cache, single-instance lock | low |
 | `Documents\KickAlerts\config.json`, `media\` | **R only, once** | legacy import on first run (copy) | — |
 | `%TEMP%` | — | not used by the app (only by the build script) | — |
+
+Waiting-alert retention: `saveCaptured()` snapshots at most 500 eligible entries in their current order and logs a warning when additional eligible alerts remain only in memory. Entries leave the snapshot when playback starts, on rejection/removal, or on queue clearing. KickBot and StreamElements disconnects remove only their own waiting entries; changing Kick settings does not clear waiting subs/gifts. `clearData()` deletes both `captured.json` and its `.tmp` and prevents late events from writing them again. There is no time-based expiry. The last successful file survives write/rename failures; the next state update retries. A failed deletion can leave the old snapshot until a successful retry or manual deletion.
+
+Boundary: this restores waiting alerts after a restart, not an alert already playing. Writes use rename without fsync; interrupted playback/power-loss recovery and exactly-once delivery are not guaranteed. Kick assigns local random ids and suppresses duplicate chat deliveries only in memory (2.5 seconds), so a provider echo across restarts can still produce a new alert. No network destination or provider protocol changes.
 
 Uninstalling removes the program folder and (by default) `%APPDATA%\SahnePlus`. It does **not** delete `Documents\Sahne Plus` — the user does that via "Clear application data" or manually.
 
@@ -96,15 +100,15 @@ Uninstalling removes the program folder and (by default) `%APPDATA%\SahnePlus`. 
 | `streamer_id` | public identifier | config.json | numeric KickBot id |
 | Kick channel slug / chatroom id / channel id | public identifiers | config.json | public |
 | `rate.proxy` | medium (may embed proxy credentials if the user types them) | config.json plaintext | user-provided |
-| Tip ids (`stripe_pi_id`) | identifiers | memory, played.json, captured.json, log | KickBot/Stripe payment-intent ids; not usable without the secret |
-| Donor names / messages / usernames | third-party personal data | memory (last 30), log file, overlay, captured.json (only a captured tip not shown yet) | shown on stream by design |
+| Tip ids (`stripe_pi_id`) | identifiers | memory, played.json, captured.json, log | KickBot/Stripe payment-intent ids, prefixed StreamElements activity ids, and locally generated Kick sub/gift ids; not credentials |
+| Donor names / messages / usernames | third-party personal data | memory (last 30), log file, overlay, captured.json (eligible waiting alerts, including Kick gift recipient names) | shown on stream by design |
 
 ## 6. Data classes
 
 - **LOCAL-ONLY**: appearance settings, file tiers/keywords, media files, played ids, logs, window state.
 - **NETWORK-PROCESSED**: the KickBot secret + streamer id (to KickBot), tip ids (to KickBot), Kick channel slug (to kick.com), nothing to anyone else.
-- **PERSISTENT**: config.json, media, played.json, captured.json (only while a captured tip waits), log, Electron userData.
-- **TEMPORARY**: in-memory queues (`pending`, `approved`, capped at 500), last-30 recent list, in-memory log (300 lines), 15-second duplicate keys for Kick events.
+- **PERSISTENT**: config.json, media, played.json, captured.json (eligible alerts waiting for playback, no time-based expiry), log, Electron userData.
+- **TEMPORARY**: in-memory queues (`pending`, `approved`; KickBot events trim them to 500, local arrivals can exceed that); pending/uncaptured/test alerts have no restart snapshot, last-30 recent list, in-memory log (300 lines), 15-second duplicate keys for Kick events.
 - **CREDENTIAL/SENSITIVE**: KickBot secret (encrypted), optional proxy URL.
 - **THIRD-PARTY DATA**: donor names/amounts/messages and TTS/GIF URLs from KickBot; subscriber/gifter usernames from Kick chat; exchange rate from Bonbast.
 
