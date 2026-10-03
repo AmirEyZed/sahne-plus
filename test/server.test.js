@@ -1,5 +1,6 @@
 // Server unit tests: validation helpers and the loopback hardening (Host / Origin / traversal), run with `node --test`.
 'use strict';
+require('./provider-queue.test');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
