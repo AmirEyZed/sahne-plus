@@ -1,6 +1,7 @@
 // Server unit tests: validation helpers and the loopback hardening (Host / Origin / traversal), run with `node --test`.
 'use strict';
 const test = require('node:test');
+require('./settings-save.test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
