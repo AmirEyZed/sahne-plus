@@ -409,7 +409,7 @@
       fetch('/api/done', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: c.tip.id })
+        body: JSON.stringify({ id: c.tip.id, playback_id: c.tip.playback_id })
       }).catch(() => {});
   }
   function stop() {
