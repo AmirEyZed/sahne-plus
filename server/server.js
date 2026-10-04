@@ -442,6 +442,7 @@ function createServer(opts) {
   const CFG_PATH = path.join(DATA, 'config.json');
   const PLAYED_PATH = path.join(DATA, 'played.json');
   const CAPTURED_PATH = path.join(DATA, 'captured.json');
+  const PLAYBACK_PATH = path.join(DATA, 'playing.json');
   const APP_VERSION = opts.appVersion || '0.0.0';
   const NODE_OK = typeof fetch === 'function' && typeof WebSocket === 'function';
   const store = opts.secretStore || null;
@@ -758,7 +759,7 @@ function createServer(opts) {
   } catch {}
   let playedSaveT = null;
   function markPlayed(id) {
-    if (!id || playedIds.has(id)) return;
+    if (stopped || !id || playedIds.has(id)) return;
     playedIds.add(id);
     playedOrder.push(id);
     while (playedOrder.length > LIMITS.played) playedIds.delete(playedOrder.shift());
@@ -786,6 +787,11 @@ function createServer(opts) {
     playTimeout = null;
   const recent = [];
   const timers = [];
+  let playbackRecord = null,
+    recoveredTip = null,
+    playbackAttempt = null,
+    playbackCompletionPending = false,
+    playbackRetryTimer = null;
 
   // ---------- captured tips not shown yet (survive a restart: the payment is taken, KickBot may no longer list the tip) ----------
   let capturedSaved = null;
@@ -817,6 +823,119 @@ function createServer(opts) {
     } catch (e) {
       log('warn', 'ذخیره‌ی دونیت پرداخت‌شده روی دیسک ناموفق بود', e.message);
     }
+  }
+
+  // A played id means playback started, not that the overlay finished. Only this journal may bypass that dedupe.
+  try {
+    const record = JSON.parse(fs.readFileSync(PLAYBACK_PATH, 'utf8'));
+    const t = record && record.version === 1 && normalizePlaybackTip(record.tip);
+    if (t) {
+      playbackRecord = t;
+      recoveredTip = t;
+      approved = approved.filter(x => x.stripe_pi_id !== t.stripe_pi_id);
+      approved.unshift(t);
+      log('info', 'هشدار نیمه‌تمام از ابتدای پخش بازیابی شد', tipSummary(t));
+    }
+  } catch (e) {
+    if (e.code !== 'ENOENT') log('warn', 'خواندن وضعیت پخش ناموفق بود', e.message);
+  }
+  function normalizePlaybackTip(p) {
+    if (!p || typeof p !== 'object' || Array.isArray(p) || p.is_test || typeof p.stripe_pi_id !== 'string') return null;
+    if (!p.stripe_pi_id || p.stripe_pi_id.length > 128) return null;
+    if (!p.is_local) {
+      if (!p.captured || (p.source && p.source !== 'kickbot') || !p.stripe_pi_id) return null;
+      return {
+        ...normalizeTip(p),
+        approval_status: 'approved',
+        gif_url: typeof p.gif_url === 'string' && p.gif_url.length <= 8192 ? httpsUrl(p.gif_url) : null,
+        audio_url: typeof p.audio_url === 'string' && p.audio_url.length <= 8192 ? httpsUrl(p.audio_url) : null,
+        created_at: typeof p.created_at === 'string' ? cleanText(p.created_at, 64) : undefined,
+        captured: true
+      };
+    }
+    if (p.is_local !== true) return null;
+    const se = p.source === 'streamelements' && p.kind === 'tip' && /^se_[A-Za-z0-9_-]{1,64}$/.test(p.stripe_pi_id);
+    const kick =
+      (!p.source || p.source === 'kick') &&
+      (p.kind === 'sub' || p.kind === 'gift') &&
+      new RegExp('^' + p.kind + '_[a-f0-9]{12}$').test(p.stripe_pi_id);
+    if (!se && !kick) return null;
+    return {
+      stripe_pi_id: p.stripe_pi_id,
+      tipper_name: cleanText(p.tipper_name, LIMITS.name),
+      tip_message: cleanText(p.tip_message, LIMITS.message),
+      amount_total: finite(p.amount_total, 0, 1e12, 0),
+      approval_status: 'approved',
+      is_local: true,
+      source: se ? 'streamelements' : 'kick',
+      kind: p.kind,
+      count: se ? null : Math.trunc(finite(p.count, 1, 1e6, 1)),
+      tags: se ? [] : p.kind === 'gift' ? ['giftsub', 'gift', 'sub'] : ['sub', 'newsub'],
+      toman_override: se ? null : finite(p.toman_override, 0, 1e12, 0) || null,
+      ...(se ? { currency: /^[A-Z]{3}$/.test(p.currency) ? p.currency : 'USD' } : {}),
+      created_at: typeof p.created_at === 'string' ? cleanText(p.created_at, 64) : undefined
+    };
+  }
+  function writePlayback(tip) {
+    if (stopped) return false;
+    try {
+      const tmp = PLAYBACK_PATH + '.tmp';
+      fs.writeFileSync(tmp, JSON.stringify({ version: 1, tip }));
+      fs.renameSync(tmp, PLAYBACK_PATH);
+      playbackRecord = tip;
+      return true;
+    } catch (e) {
+      log(
+        'warn',
+        'ذخیره‌ی وضعیت پخش ناموفق بود؛ پخش بعدی تا ذخیره‌ی موفق انجام نمی‌شود و دوباره تلاش می‌شود',
+        e.message
+      );
+      return false;
+    }
+  }
+  function startPlayback(t) {
+    const tip = normalizePlaybackTip(t);
+    if (!tip) {
+      log('warn', 'هشدار نامعتبر است؛ وضعیت پخش ذخیره نشد');
+      return false;
+    }
+    return writePlayback(tip);
+  }
+  function completePlayback(id) {
+    if (stopped) return false;
+    if (!playbackRecord || playbackRecord.stripe_pi_id !== id) return true;
+    // Rename a completed marker before deleting: even a locked file must not restore a finished alert.
+    if (!writePlayback(null)) {
+      playbackCompletionPending = true;
+      clearTimeout(playbackRetryTimer);
+      playbackRetryTimer = setTimeout(() => {
+        if (stopped) return;
+        if (completePlayback(id)) {
+          sendState();
+          tryNext();
+        }
+      }, 1000);
+      return false;
+    }
+    playbackCompletionPending = false;
+    clearTimeout(playbackRetryTimer);
+    try {
+      fs.rmSync(PLAYBACK_PATH, { force: true });
+    } catch (e) {
+      log('warn', 'حذف فایل وضعیت پخش ناموفق بود؛ هشدار پایان‌یافته بازیابی نمی‌شود', e.message);
+    }
+    return true;
+  }
+  function discardQueuedPlayback(predicate = () => true) {
+    if (stopped) return false;
+    const t = playbackRecord && approved.find(x => x.stripe_pi_id === playbackRecord.stripe_pi_id && predicate(x));
+    if (t) {
+      const persisted = completePlayback(t.stripe_pi_id);
+      markPlayed(t.stripe_pi_id);
+      if (recoveredTip === t) recoveredTip = null;
+      return persisted;
+    }
+    return true;
   }
   function connect() {
     if (stopped || !NODE_OK || !secret || !config.streamer_id) return;
@@ -923,6 +1042,7 @@ function createServer(opts) {
         queueStatus = 'pause';
         break;
       case 'queue_clear':
+        discardQueuedPlayback();
         pending = [];
         approved = [];
         break;
@@ -944,6 +1064,7 @@ function createServer(opts) {
         break;
       }
       case 'tip_rejected':
+        discardQueuedPlayback(t => t.stripe_pi_id === p.stripe_pi_id);
         pending = pending.filter(x => x.stripe_pi_id !== p.stripe_pi_id);
         approved = approved.filter(x => x.stripe_pi_id !== p.stripe_pi_id);
         if (playing && playing.stripe_pi_id === p.stripe_pi_id) {
@@ -962,7 +1083,12 @@ function createServer(opts) {
         break;
     }
     if (pending.length > 500) pending = pending.slice(-500);
-    if (approved.length > 500) approved = approved.slice(-500);
+    if (approved.length > 500) {
+      const recoveryWaiting = recoveredTip && approved.includes(recoveredTip);
+      approved = recoveryWaiting
+        ? [recoveredTip, ...approved.filter(t => t !== recoveredTip).slice(-499)]
+        : approved.slice(-500);
+    }
     sendState();
   }
   async function syncQueue() {
@@ -1840,7 +1966,7 @@ function createServer(opts) {
   const CAPTURE_MAX_ATTEMPTS = 3,
     CAPTURE_RETRY_MS = Number(opts.captureRetryMs) || 15000;
   async function tryNext() {
-    if (config.mode === 'companion' || advancing) return;
+    if (stopped || config.mode === 'companion' || advancing || playbackCompletionPending) return;
     if (playing || queueStatus !== 'play' || approved.length === 0) return;
     if (clients.overlay.size === 0) return; // wait until a Browser Source is open; nothing is lost
     const wait = lastEnd + queueDelay * 1000 - Date.now();
@@ -1849,9 +1975,21 @@ function createServer(opts) {
       nextTimer = setTimeout(tryNext, wait + 50);
       return;
     }
-    const t = approved.shift();
+    const t = approved[0];
     if (!t) return;
-    if (!t.is_replay && playedIds.has(t.stripe_pi_id)) return tryNext();
+    if (t !== recoveredTip && !t.is_replay && playedIds.has(t.stripe_pi_id)) {
+      approved.shift();
+      sendState();
+      return tryNext();
+    }
+    // For waiting local/captured alerts, commit the active record before removing their waiting snapshot.
+    if (!t.is_test && (t.is_local || t.captured) && !startPlayback(t)) {
+      clearTimeout(nextTimer);
+      nextTimer = setTimeout(tryNext, 1000);
+      sendState();
+      return;
+    }
+    approved.shift();
     advancing = true;
     let next = false;
     try {
@@ -1859,6 +1997,7 @@ function createServer(opts) {
       sendState();
       if (!t.is_test && !t.is_local && !t.captured) {
         const res = await capture(t);
+        if (stopped) return;
         if (!playing || playing.stripe_pi_id !== t.stripe_pi_id) return; // skipped / cleared while capturing
         if (res !== 'ok') {
           playing = null;
@@ -1895,18 +2034,28 @@ function createServer(opts) {
           return; // other tips need not wait; the failed one is retried after the delay
         }
         t.captured = true; // the payment is taken: this tip is never captured again
+        if (!startPlayback(t)) {
+          playing = null;
+          approved.unshift(t);
+          clearTimeout(nextTimer);
+          nextTimer = setTimeout(tryNext, 1000);
+          sendState();
+          return;
+        }
       }
       if (clients.overlay.size === 0) {
         // every Browser Source closed while the payment was being captured: showing now would reach nobody, so the
         // tip goes back to the front of the queue (not marked as played) and plays when a Browser Source connects
         playing = null;
         approved.unshift(t);
+        recoveredTip = t; // keep the durable handoff pinned even if many new queue events arrive
         log('warn', 'هیچ Browser Source ای متصل نیست؛ دونیت پرداخت‌شده در صف ماند تا دوباره وصل شود', tipSummary(t));
         sendState();
         return;
       }
       if (!t.is_test && !t.is_local) publish('tip_play', { stripe_pi_id: t.stripe_pi_id });
       captureFailures.delete(t.stripe_pi_id);
+      playbackAttempt = crypto.randomBytes(12).toString('hex');
       markPlayed(t.stripe_pi_id);
       showTip(t);
     } finally {
@@ -1927,11 +2076,7 @@ function createServer(opts) {
       });
       if (recent.length > 30) recent.pop();
       if (config.mode !== 'companion' && playing && playing.stripe_pi_id === t.stripe_pi_id) {
-        if (!t.is_test && !t.is_local) publish('tip_end', { stripe_pi_id: t.stripe_pi_id });
-        playing = null;
-        lastEnd = Date.now();
-        sendState();
-        setTimeout(tryNext, 0);
+        finishPlaying(t.stripe_pi_id, false, false);
       }
       return;
     }
@@ -1943,7 +2088,7 @@ function createServer(opts) {
     clearTimeout(playTimeout);
     playTimeout = setTimeout(
       () => finishPlaying(t.stripe_pi_id, false, true),
-      (config.appearance.maxDuration + 15) * 1000
+      (opts.testHooks && opts.testHooks.playbackTimeoutMs) || (config.appearance.maxDuration + 15) * 1000
     );
     sendState();
   }
@@ -1953,14 +2098,20 @@ function createServer(opts) {
     clearTimeout(playTimeout);
     if (timedOut) log('warn', 'اورلی پایان پخش را اعلام نکرد؛ رد شدن به بعدی');
     if (!playing.is_test && !playing.is_local && !rejected) publish('tip_end', { stripe_pi_id: id });
+    const persisted = completePlayback(id);
+    if (playing === recoveredTip) recoveredTip = null;
     playing = null;
+    playbackAttempt = null;
     lastEnd = Date.now();
     sendState();
-    tryNext();
+    if (advancing) setTimeout(tryNext, 0);
+    else tryNext();
+    return persisted;
   }
   function buildPayload(t, media) {
     return {
       id: t.stripe_pi_id,
+      playback_id: playing === t ? playbackAttempt : undefined,
       name: cleanText(t.tipper_name, LIMITS.name) || 'ناشناس',
       amount: (t.amount_total || 0) / 100,
       currency: t.currency || 'USD',
@@ -2034,6 +2185,13 @@ function createServer(opts) {
   }
 
   // ---------- HTTP ----------
+  function playbackResult(res, persisted) {
+    return json(
+      res,
+      persisted ? 200 : 503,
+      persisted ? { ok: true } : { ok: false, error: 'ذخیره‌ی پایان پخش ناموفق بود؛ دوباره تلاش می‌شود' }
+    );
+  }
   function json(res, code, obj) {
     res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(JSON.stringify(obj));
@@ -2301,6 +2459,7 @@ function createServer(opts) {
         broadcast('overlay', { type: 'config', appearance: config.appearance });
         broadcast('preview', { type: 'config', appearance: config.appearance });
         sendState();
+        tryNext(); // switching back to standalone also releases a recovered alert waiting for playback
         return json(res, 200, { ok: true, config: publicConfig() });
       }
       if (p === '/api/file' && req.method === 'PATCH') {
@@ -2576,16 +2735,18 @@ function createServer(opts) {
       }
       if (p === '/api/se/disconnect' && req.method === 'POST') {
         seDisconnect();
+        const persisted = discardQueuedPlayback(t => t.source === 'streamelements');
         approved = approved.filter(t => t.source !== 'streamelements');
         saveConfig();
         log('info', 'اتصال StreamElements حذف شد');
         sendState();
-        return json(res, 200, { ok: true });
+        return playbackResult(res, persisted);
       }
       if (p === '/api/disconnect-kickbot' && req.method === 'POST') {
         secret = '';
         config.streamer_id = null;
         // drop only KickBot's tips (including its dashboard test tips); Kick subs, StreamElements tips and the app's own test alerts stay queued
+        const persisted = discardQueuedPlayback(t => t.source === 'kickbot');
         pending = pending.filter(t => t.source !== 'kickbot');
         approved = approved.filter(t => t.source !== 'kickbot');
         saveConfig();
@@ -2597,7 +2758,7 @@ function createServer(opts) {
         }
         log('info', 'اتصال کیک‌بات حذف شد');
         sendState();
-        return json(res, 200, { ok: true });
+        return playbackResult(res, persisted);
       }
       if (p === '/api/reset-settings' && req.method === 'POST') {
         // appearance, kick, rate and mode go back to defaults; files, the KickBot connection and app options are kept
@@ -2628,19 +2789,26 @@ function createServer(opts) {
         return json(res, 200, { ok: await meldReloadLayers('manual') });
       if (p === '/api/done' && req.method === 'POST') {
         const body = await readJson(req);
-        finishPlaying(String(body.id || ''), false, false);
+        // A Browser Source surviving the restart can still send the previous attempt's completion.
+        if (playing && (body.playback_id || playing === recoveredTip) && body.playback_id !== playbackAttempt)
+          return json(res, 200, { ok: true, ignored: true });
+        if (playbackCompletionPending && playbackRecord && playbackRecord.stripe_pi_id === body.id)
+          return json(res, 503, { ok: false, error: 'ذخیره‌ی پایان پخش ناموفق بود؛ دوباره تلاش می‌شود' });
+        if (finishPlaying(String(body.id || ''), false, false) === false)
+          return json(res, 503, { ok: false, error: 'ذخیره‌ی پایان پخش ناموفق بود؛ دوباره تلاش می‌شود' });
         return json(res, 200, { ok: true });
       }
       if (p === '/api/skip' && req.method === 'POST') {
         broadcast('overlay', { type: 'stop' });
         if (playing) finishPlaying(playing.stripe_pi_id, false, false);
-        return json(res, 200, { ok: true });
+        return playbackResult(res, !playbackCompletionPending);
       }
       if (p === '/api/clear-queue' && req.method === 'POST') {
+        const persisted = discardQueuedPlayback();
         approved = [];
         pending = [];
         sendState();
-        return json(res, 200, { ok: true });
+        return playbackResult(res, persisted);
       }
       if (p === '/api/open-media-folder' && req.method === 'POST') {
         if (opts.openPath) opts.openPath(MEDIA);
@@ -2707,6 +2875,7 @@ function createServer(opts) {
     } catch {}
     clearTimeout(nextTimer);
     clearTimeout(playTimeout);
+    clearTimeout(playbackRetryTimer);
     clearTimeout(playedSaveT);
     try {
       fs.writeFileSync(PLAYED_PATH, JSON.stringify(playedOrder));
@@ -2733,7 +2902,14 @@ function createServer(opts) {
         fs.unlinkSync(path.join(MEDIA, f));
       } catch {}
     }
-    for (const f of [CFG_PATH, PLAYED_PATH, CAPTURED_PATH, CAPTURED_PATH + '.tmp']) {
+    for (const f of [
+      CFG_PATH,
+      PLAYED_PATH,
+      CAPTURED_PATH,
+      CAPTURED_PATH + '.tmp',
+      PLAYBACK_PATH,
+      PLAYBACK_PATH + '.tmp'
+    ]) {
       try {
         fs.unlinkSync(f);
       } catch {}
@@ -2757,6 +2933,9 @@ function createServer(opts) {
         queueIds: () => approved.map(t => t.stripe_pi_id),
         pendingIds: () => pending.map(t => t.stripe_pi_id),
         kickbotEvent: (type, raw) => handleEvent(type, raw),
+        streamElementsActivity: a => handleSeActivity(a),
+        kickSubscription: (name, months) => handleSub(name, months),
+        kickGifts: (name, names) => handleGift(name, names),
         isPlayed: id => playedIds.has(id)
       }
     : undefined;

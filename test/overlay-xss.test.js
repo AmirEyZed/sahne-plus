@@ -335,6 +335,59 @@ console.log('OK: local image alerts render; foreign image hosts refused');
     'dollar unchanged'
   );
   console.log('OK: other currencies on the card');
+  // Execute the real completion path in a non-preview Browser Source with controlled timers.
+  const liveStage = el('div');
+  const callbacks = new Map();
+  const requests = [];
+  let nextTimer = 0,
+    liveEvents;
+  const live = {
+    ...sandbox,
+    location: { ...sandbox.location, search: '' },
+    document: { ...sandbox.document, getElementById: () => liveStage },
+    setTimeout: fn => {
+      callbacks.set(++nextTimer, fn);
+      return nextTimer;
+    },
+    clearTimeout: id => callbacks.delete(id),
+    fetch: (url, options) => {
+      requests.push({ url, body: JSON.parse(options.body) });
+      return Promise.resolve({ ok: true });
+    },
+    EventSource: class {
+      constructor() {
+        liveEvents = this;
+      }
+      close() {}
+    }
+  };
+  live.window = live;
+  vm.runInNewContext(src, live, { filename: 'overlay.js' });
+  liveEvents.onmessage({
+    data: JSON.stringify({
+      type: 'config',
+      appearance: { ...appearance, minDuration: 1, maxDuration: 1, cardDelay: 0, animation: 'none' }
+    })
+  });
+  liveEvents.onmessage({
+    data: JSON.stringify({
+      type: 'play',
+      tip: {
+        ...base,
+        id: 'synthetic_attempt',
+        playback_id: 'synthetic_completion_token',
+        tts_url: null,
+        media: null,
+        gif_url: null
+      }
+    })
+  });
+  for (const callback of [...callbacks.values()]) callback();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepStrictEqual(requests, [
+    { url: '/api/done', body: { id: 'synthetic_attempt', playback_id: 'synthetic_completion_token' } }
+  ]);
+  console.log('OK: Browser Source completion carries the current playback attempt');
   process.exit(0);
 })().catch(e => {
   console.error(e);

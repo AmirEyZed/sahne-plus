@@ -1,5 +1,6 @@
 // Server unit tests: validation helpers and the loopback hardening (Host / Origin / traversal), run with `node --test`.
 'use strict';
+require('./playback-recovery.test');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -602,6 +603,7 @@ test('a captured tip waiting for a Browser Source survives a restart and plays o
   assert.equal(saved(), null, 'the file is removed once the tip has played');
 
   // an entry that was already played, a test tip, malformed entries and a corrupt file are not restored
+  await request('POST', '/api/skip'); // finish the alert; an interrupted active alert now has its own recovery record
   await srv.stop();
   fs.writeFileSync(
     CAPTURED,
@@ -630,6 +632,7 @@ test('a captured tip waiting for a Browser Source survives a restart and plays o
   );
   assert.equal(saved(), null, 'the file is removed once the replay has played');
 
+  await request('POST', '/api/skip');
   await srv.stop();
   fs.writeFileSync(CAPTURED, '{not json');
   await boot();
@@ -637,6 +640,7 @@ test('a captured tip waiting for a Browser Source survives a restart and plays o
   assert.equal(fs.existsSync(CAPTURED), false, 'and removed');
 
   // "Clear application data" while a capture is in flight: the file is deleted and not written again when the capture returns
+  let wipeCaptureReturned = false;
   const o = openOverlay();
   await waitFor(async () => (await overlayCount()) === 1, 'the Browser Source to register');
   duringCapture = async () => {
@@ -645,9 +649,11 @@ test('a captured tip waiting for a Browser Source survives a restart and plays o
     fs.writeFileSync(CAPTURED, JSON.stringify([tip('pi_other')]));
     srv.clearData();
     assert.equal(fs.existsSync(CAPTURED), false, 'clearData removes captured.json');
+    wipeCaptureReturned = true;
   };
   srv.testHooks.injectTip(tip('pi_wipe'));
-  await waitFor(() => srv.testHooks.queueIds().includes('pi_wipe'), 'the capture to return');
+  await waitFor(() => wipeCaptureReturned, 'the capture to return');
+  assert.equal(srv.testHooks.queueIds().includes('pi_wipe'), false, 'stopped servers do not requeue late captures');
   assert.equal(fs.existsSync(CAPTURED), false, 'nothing is written after the wipe');
 });
 
@@ -913,6 +919,7 @@ test('other currencies: rates are read from baha24 / bonbast and a StreamElement
     approval_status: 'approved',
     is_local: true,
     source: 'streamelements',
+    kind: 'tip',
     created_at: new Date().toISOString()
   });
   srv.testHooks.injectTip(tip('se_eur1', 'EUR'));

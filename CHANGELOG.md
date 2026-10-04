@@ -2,6 +2,10 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
+## Unreleased
+
+- Fixed: a real alert interrupted by closing or restarting the app during standalone playback now resumes from the beginning when a Browser Source returns. A versioned `playing.json` record survives the existing played-id suppression, reuses captured KickBot payments, and preserves StreamElements/Kick details. Completion, skip, rejection and timeout retire it; old Browser Source completion requests cannot finish a recovered attempt. Storage failures block the next playback and retry. Privacy and data-flow documents describe retention and recovery limits.
+
 ## 1.3.9 — 2026-10-01
 
 - Fixed: the tip-queue settings KickBot sends when they change (the delay between alerts, queue mode, tipping on/off, and the play/pause state sent with them) were dropped, so the app always waited its default 5 seconds between alerts. They now apply as soon as KickBot sends them, and a queue switched back to play continues at once. Values of the wrong type are ignored. Note: a queue paused in KickBot holds every alert (Kick subs and StreamElements tips too) until it is set to play again, the same as the «توقف» state shown on the Home page (thanks [SoroushRF](https://github.com/SoroushRF), [#12](https://github.com/AmirEyZed/sahne-plus/pull/12)).

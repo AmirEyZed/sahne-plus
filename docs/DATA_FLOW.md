@@ -81,9 +81,16 @@ Electron/Chromium platform traffic: the app does not set Google API keys, does n
 | `Documents\Sahne Plus\played.json` | R/W | last 1000 played tip ids | low |
 | `Documents\Sahne Plus\sahne-plus.log` (+ `.1`) | W, rotates at 5 MB | log lines: connection state, tip name / amount / message / media, errors. Secrets are redacted by `safe()` | donor names and messages (personal data of third parties, local only) |
 | `Documents\Sahne Plus\captured.json` | R/W (atomic write via `.tmp` + rename) | KickBot tips already captured but not shown yet (all Browser Sources closed during `capture_tip`): the normalized tip (id, donor name, amount, message, GIF/TTS URLs); restored to the front of the queue on start. Written only when that set changes, deleted when it is empty | donor names and messages (personal data of third parties, local only) |
+| `Documents\Sahne Plus\playing.json` (and `.tmp` during writes) | R/W (atomic temporary-file write + rename) | Versioned record of at most one unfinished real standalone alert. Bounded whitelisted tip fields: id/source/name/message/amount/timestamp; KickBot captured/replay flags and GIF/TTS URLs; StreamElements currency; Kick kind/count/media tags/toman override. Captured/local alerts commit before removal from the waiting snapshot; a newly captured donation commits before playback. Completion writes `{version:1,tip:null}` before deletion | plaintext viewer names/messages (including gift recipients), local only; no credentials. An undeleted completion marker contains no viewer data |
 | `%APPDATA%\SahnePlus\` | R/W by Chromium | Electron userData: cache, `Local Storage` (only `sp.page`), GPU cache, single-instance lock | low |
 | `Documents\KickAlerts\config.json`, `media\` | **R only, once** | legacy import on first run (copy) | — |
 | `%TEMP%` | — | not used by the app (only by the build script) | — |
+
+Active playback recovery: startup restores only a valid version-1 real alert to the front of the queue, even if its id is already in `played.json`; other played-id deduplication stays in force. It waits for a Browser Source and a playing queue, then starts from the beginning with current media/appearance settings. Stored KickBot payments remain captured; local StreamElements/Kick alerts never call KickBot capture/publish. Recovered KickBot displays use the existing `tip_play`/`tip_end` protocol again and may reload stored GIF/TTS URLs. Test, malformed, unknown-provider, uncaptured-payment and completed records are not restored. Companion mode does not replay the recovered queue until standalone mode is active.
+
+Completion and retention: `/api/done`, skip, rejection, the existing playback timeout and no-media suppression finish the journal. Clearing the queue, rejecting a queued recovery or disconnecting its provider retires that waiting recovery; disconnecting another provider and clearing only waiting alerts do not stop active playback. `stop()` keeps an unfinished record; `clearData()` deletes both journal files and blocks late writes. No time-based expiry applies while recovery waits. Each display has a random in-memory attempt token sent with overlay completion; recovery requires the current token so a Browser Source surviving the restart cannot acknowledge the previous attempt. The token is not a credential and is not stored in the journal.
+
+Write failures block the next playback and retry every second without recapturing a paid donation. A failed completion commit returns HTTP 503 from the relevant completion/removal endpoint (`/api/done`, skip, queue clear or provider disconnect), prevents the next alert from replacing the unfinished record, and retries in the background. A successful empty-marker commit prevents recovery even if deletion fails. If the app exits before a failed completion commit succeeds, that old record can replay; logs disclose storage failures. This is at-least-once restart recovery, not exactly-once display or frame-position resume. Writes use rename without fsync; power loss and a crash between provider capture and the successful journal commit remain outside this guarantee. Completed-id persistence keeps its existing delayed-write behavior. No new network destination, credential or provider API is introduced.
 
 Uninstalling removes the program folder and (by default) `%APPDATA%\SahnePlus`. It does **not** delete `Documents\Sahne Plus` — the user does that via "Clear application data" or manually.
 
@@ -96,14 +103,15 @@ Uninstalling removes the program folder and (by default) `%APPDATA%\SahnePlus`. 
 | `streamer_id` | public identifier | config.json | numeric KickBot id |
 | Kick channel slug / chatroom id / channel id | public identifiers | config.json | public |
 | `rate.proxy` | medium (may embed proxy credentials if the user types them) | config.json plaintext | user-provided |
-| Tip ids (`stripe_pi_id`) | identifiers | memory, played.json, captured.json, log | KickBot/Stripe payment-intent ids; not usable without the secret |
-| Donor names / messages / usernames | third-party personal data | memory (last 30), log file, overlay, captured.json (only a captured tip not shown yet) | shown on stream by design |
+| Tip ids (`stripe_pi_id`) | identifiers | memory, played.json, captured.json, playing.json, log | KickBot/Stripe payment-intent ids, StreamElements activity ids and locally generated Kick event ids; not credentials |
+| Playback attempt tokens | public local identifiers | memory, loopback SSE/HTTP | random per-display token returned with /api/done; not a credential and not stored in either alert snapshot |
+| Donor names / messages / usernames | third-party personal data | memory (last 30), log file, overlay, captured.json (captured tips waiting), playing.json (unfinished real standalone alerts) | shown on stream by design |
 
 ## 6. Data classes
 
 - **LOCAL-ONLY**: appearance settings, file tiers/keywords, media files, played ids, logs, window state.
 - **NETWORK-PROCESSED**: the KickBot secret + streamer id (to KickBot), tip ids (to KickBot), Kick channel slug (to kick.com), nothing to anyone else.
-- **PERSISTENT**: config.json, media, played.json, captured.json (only while a captured tip waits), log, Electron userData.
+- **PERSISTENT**: config.json, media, played.json, captured.json (only while a captured tip waits), playing.json (unfinished real standalone playback), log, Electron userData.
 - **TEMPORARY**: in-memory queues (`pending`, `approved`, capped at 500), last-30 recent list, in-memory log (300 lines), 15-second duplicate keys for Kick events.
 - **CREDENTIAL/SENSITIVE**: KickBot secret (encrypted), optional proxy URL.
 - **THIRD-PARTY DATA**: donor names/amounts/messages and TTS/GIF URLs from KickBot; subscriber/gifter usernames from Kick chat; exchange rate from Bonbast.
