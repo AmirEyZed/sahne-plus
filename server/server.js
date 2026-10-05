@@ -672,6 +672,16 @@ function createServer(opts) {
       size: finite(f.size, 0, 1e13, 0)
     };
   }
+  function fileRangeError(f, update) {
+    // Validate edited ranges after normalization. Keep old entries loadable and repairable.
+    for (const [min, max, label] of [
+      ['minToman', 'maxToman', 'تومان'],
+      ['minAmount', 'maxAmount', 'دلار']
+    ])
+      if ((min in update || max in update) && f[max] != null && (f[min] ?? 0) > f[max])
+        return `حداقل مبلغ (${label}) نباید از حداکثر بیشتر باشد`;
+    return null;
+  }
   function sanitizeAppearance(a) {
     const cur = config.appearance,
       out = { ...cur };
@@ -2308,16 +2318,23 @@ function createServer(opts) {
         });
       if (p === '/api/config' && req.method === 'POST') {
         const body = await readJson(req);
-        if (body.appearance) config.appearance = sanitizeAppearance(body.appearance);
+        const fileUpdates = new Map();
         if (Array.isArray(body.files)) {
           // update existing entries by id; unknown ids are ignored and nothing is removed (use DELETE /api/file)
           for (const raw of body.files) {
             const cur = raw && config.files.find(x => x.id === raw.id);
             if (!cur) continue;
-            const merged = sanitizeFile({ ...cur, ...raw, id: cur.id, file: cur.file, size: cur.size });
-            if (merged) Object.assign(cur, merged);
+            const previous = fileUpdates.get(cur.id)?.[1] || cur;
+            const merged = sanitizeFile({ ...previous, ...raw, id: cur.id, file: cur.file, size: cur.size });
+            if (!merged) continue;
+            const error = fileRangeError(merged, raw);
+            if (error) return json(res, 400, { error, code: 'invalid_amount_range' });
+            fileUpdates.set(cur.id, [cur, merged]);
           }
         }
+        // Commit only after every edited range passes, including repeated ids in the same batch.
+        if (body.appearance) config.appearance = sanitizeAppearance(body.appearance);
+        for (const [cur, merged] of fileUpdates.values()) Object.assign(cur, merged);
         if (body.mode && ENUMS.mode.includes(body.mode)) config.mode = body.mode;
         if (typeof body.showAlertWithoutMedia === 'boolean') config.showAlertWithoutMedia = body.showAlertWithoutMedia;
         if (body.app && typeof body.app === 'object')
@@ -2394,6 +2411,8 @@ function createServer(opts) {
         if (!f) return json(res, 404, { error: 'not found' });
         const merged = sanitizeFile({ ...f, ...body, id: f.id, file: f.file, size: f.size });
         if (!merged) return json(res, 400, { error: 'invalid' });
+        const error = fileRangeError(merged, body);
+        if (error) return json(res, 400, { error, code: 'invalid_amount_range' });
         Object.assign(f, merged);
         saveConfig();
         sendState();

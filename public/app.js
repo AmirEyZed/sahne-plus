@@ -628,6 +628,7 @@ content.addEventListener('drop', async e => {
 // ---------- inspector ----------
 let insT = null;
 function selectFile(id) {
+  clearTimeout(insT);
   selectedId = id;
   const f = (CFG.files || []).find(x => x.id === id);
   if (!f) return closeInspector();
@@ -649,10 +650,13 @@ function selectFile(id) {
   $('#iDur').value = f.duration ?? '';
   $('#iCardDelay').value = f.cardDelay ?? '';
   $('#iMinChip').textContent = fmtToman(f.minToman);
+  $('#insSaved').classList.remove('show');
+  validateInspectorRange();
   $('#inspector').hidden = false;
   $('#shell').classList.add('has-inspector');
 }
 function closeInspector() {
+  clearTimeout(insT);
   selectedId = null;
   $('#inspector').hidden = true;
   $('#shell').classList.remove('has-inspector');
@@ -664,6 +668,27 @@ function closeInspector() {
   }
 }
 $('#insClose').onclick = closeInspector;
+function setInspectorRangeError(message) {
+  const error = $('#iRangeError');
+  error.textContent = message;
+  error.hidden = !message;
+  for (const sel of ['#iMin', '#iMax']) {
+    $(sel).setAttribute('aria-invalid', message ? 'true' : 'false');
+    $(sel).setCustomValidity(message);
+  }
+}
+function validateInspectorRange() {
+  const min = $('#iMin'),
+    max = $('#iMax');
+  const message =
+    min.validity.badInput || max.validity.badInput
+      ? 'مبلغ معتبر وارد کنید'
+      : max.value !== '' && Number(min.value || 0) > Number(max.value)
+        ? 'حداقل مبلغ (تومان) نباید از حداکثر بیشتر باشد'
+        : '';
+  setInspectorRangeError(message);
+  return !message;
+}
 function collectInspector() {
   const num = v => (v === '' ? null : Number(v));
   return {
@@ -686,17 +711,25 @@ function collectInspector() {
     if (!selectedId) return;
     $('#iMinChip').textContent = fmtToman($('#iMin').value);
     clearTimeout(insT);
+    $('#insSaved').classList.remove('show');
+    if (!validateInspectorRange()) return;
+    const id = selectedId;
     insT = setTimeout(async () => {
+      if (selectedId !== id || !validateInspectorRange()) return;
       const body = collectInspector();
       const r = await patch('/api/file', body);
+      const currentDraft = selectedId === id && JSON.stringify(collectInspector()) === JSON.stringify(body);
       if (r.ok) {
         const f = CFG.files.find(x => x.id === body.id);
         if (f) Object.assign(f, r.file);
         renderFiles();
-        const s = $('#insSaved');
-        s.classList.add('show');
-        setTimeout(() => s.classList.remove('show'), 1200);
-      } else toast(r.error || 'ذخیره نشد', 'err');
+        if (currentDraft) {
+          const s = $('#insSaved');
+          s.classList.add('show');
+          setTimeout(() => s.classList.remove('show'), 1200);
+        }
+      } else if (currentDraft && r.code === 'invalid_amount_range') setInspectorRangeError(r.error);
+      else if (currentDraft) toast(r.error || 'ذخیره نشد', 'err');
     }, 350);
   })
 );

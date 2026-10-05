@@ -389,8 +389,9 @@
     <div class="fields">
       <div class="field"><label>اسم نمایشی</label><input type="text" id="iName"></div>
       <div class="switch-row"><label class="lbl" style="margin:0">فعال</label><label class="switch"><input type="checkbox" id="iEnabled"><span></span></label></div>
-      <div class="field"><label>حداقل مبلغ (تومان) <span class="chip" id="iMinChip"></span></label><input type="number" id="iMin" min="0" step="10000" class="ltr"></div>
-      <div class="field"><label>حداکثر مبلغ (تومان) — خالی = نامحدود</label><input type="number" id="iMax" min="0" step="10000" class="ltr"></div>
+      <div class="field"><label for="iMin">حداقل مبلغ (تومان) <span class="chip" id="iMinChip"></span></label><input type="number" id="iMin" min="0" step="10000" class="ltr" aria-describedby="iRangeError"></div>
+      <div class="field"><label for="iMax">حداکثر مبلغ (تومان) — خالی = نامحدود</label><input type="number" id="iMax" min="0" step="10000" class="ltr" aria-describedby="iRangeError"></div>
+      <p class="hint" id="iRangeError" role="status" hidden></p>
       <div class="field"><label>کلمات کلیدی داخل پیام (با , جدا کن) — خالی = فقط مبلغ</label><input type="text" id="iKw" placeholder="!dance, رقص, sub"></div>
       <div class="grid" style="grid-template-columns:1fr 1fr">
         <div class="field"><label>صدا %</label><input type="number" id="iVol" min="0" max="100" class="ltr"></div>
