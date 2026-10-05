@@ -1160,10 +1160,13 @@ test('/api/analytics serves the stored history, honours range and tz, and hides 
   assert.equal(e.coverage.events, 0);
   assert.ok(Array.isArray(e.notes));
 
-  // seed the store the way the alert pipeline does, through the public store surface
+  // seed the store the way the alert pipeline does, through the public store surface. Both records must fall on
+  // today: between 00:00 and 01:00 local time "an hour ago" is yesterday, so neither is placed before midnight.
+  const midnight = new Date();
+  midnight.setHours(0, 0, 0, 0);
   srv.analytics.record({
     id: 'pi_1',
-    at: Date.now() - 3600000,
+    at: Math.max(midnight.getTime(), Date.now() - 3600000),
     name: 'Ali',
     amount: 25,
     currency: 'USD',
@@ -1175,7 +1178,7 @@ test('/api/analytics serves the stored history, honours range and tz, and hides 
   });
   srv.analytics.record({
     id: 'pi_2',
-    at: Date.now() - 1000,
+    at: Math.max(midnight.getTime(), Date.now() - 1000),
     name: 'Ali',
     amount: 5,
     currency: 'USD',
