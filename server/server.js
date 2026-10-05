@@ -877,36 +877,74 @@ function createServer(opts) {
   const recent = [];
   const timers = [];
 
-  // ---------- captured tips not shown yet (survive a restart: the payment is taken, KickBot may no longer list the tip) ----------
+  // ---------- waiting alerts that providers may not send again after a restart ----------
+  const WAITING_LIMIT = 500;
   let capturedSaved = null;
+  let waitingOverflow = false;
   try {
     const arr = JSON.parse(fs.readFileSync(CAPTURED_PATH, 'utf8'));
     if (Array.isArray(arr))
-      for (const x of arr.slice(0, 500)) {
-        const t = x && typeof x === 'object' && normalizeTip(x);
+      for (const x of arr.slice(0, WAITING_LIMIT)) {
+        const t = normalizeWaitingTip(x, true);
         // an already played id is skipped, except for a replay (as in tryNext())
         if (!t || !t.stripe_pi_id || t.is_test || (!t.is_replay && playedIds.has(t.stripe_pi_id))) continue;
         if (approved.some(y => y.stripe_pi_id === t.stripe_pi_id)) continue;
-        approved.push({ ...t, captured: true });
-        log('info', 'دونیت پرداخت‌شده‌ای که نمایش داده نشده بود به صف برگشت', tipSummary(t));
+        approved.push(t);
+        log('info', 'هشدار نمایش‌داده‌نشده به صف برگشت', tipSummary(t));
       }
   } catch {}
   saveCaptured(); // rewrites what was restored; played, malformed or unreadable entries do not stay on disk
   function saveCaptured() {
     if (stopped) return; // Clear application data deletes the file after stop()
-    const list = approved.filter(t => t.captured);
-    const key = list.map(t => t.stripe_pi_id).join(',');
+    const eligible = approved.map(t => normalizeWaitingTip(t)).filter(Boolean);
+    if (eligible.length > WAITING_LIMIT && !waitingOverflow)
+      log('warn', 'فقط ۵۰۰ هشدار اول صف برای بازیابی پس از راه‌اندازی مجدد ذخیره می‌شوند');
+    waitingOverflow = eligible.length > WAITING_LIMIT;
+    const list = eligible.slice(0, WAITING_LIMIT);
+    const key = JSON.stringify(list);
     if (key === capturedSaved) return;
     try {
       if (list.length) {
         const tmp = CAPTURED_PATH + '.tmp';
-        fs.writeFileSync(tmp, JSON.stringify(list.map(normalizeTip)));
+        fs.writeFileSync(tmp, key);
         fs.renameSync(tmp, CAPTURED_PATH);
       } else fs.rmSync(CAPTURED_PATH, { force: true });
       capturedSaved = key;
     } catch (e) {
-      log('warn', 'ذخیره‌ی دونیت پرداخت‌شده روی دیسک ناموفق بود', e.message);
+      log('warn', 'ذخیره‌ی هشدارهای صف روی دیسک ناموفق بود', e.message);
     }
+  }
+  function normalizeWaitingTip(p, restoring = false) {
+    if (!p || typeof p !== 'object' || Array.isArray(p) || p.is_test) return null;
+    if (p.is_local || p.source === 'streamelements' || p.source === 'kick') {
+      // Keep local alerts local: they must never enter KickBot's capture/publish paths.
+      if (p.is_local !== true || typeof p.stripe_pi_id !== 'string') return null;
+      const se = p.source === 'streamelements' && p.kind === 'tip' && /^se_[A-Za-z0-9_-]{1,64}$/.test(p.stripe_pi_id);
+      const kick =
+        p.source === 'kick' &&
+        (p.kind === 'sub' || p.kind === 'gift') &&
+        new RegExp('^' + p.kind + '_[a-f0-9]{12}$').test(p.stripe_pi_id);
+      if (!se && !kick) return null;
+      return {
+        stripe_pi_id: p.stripe_pi_id,
+        tipper_name: cleanText(p.tipper_name, LIMITS.name),
+        tip_message: cleanText(p.tip_message, LIMITS.message),
+        amount_total: finite(p.amount_total, 0, 1e12, 0),
+        approval_status: 'approved',
+        is_local: true,
+        source: p.source,
+        kind: p.kind,
+        count: se ? null : Math.trunc(finite(p.count, 1, 1e6, 1)),
+        tags: se ? [] : p.kind === 'gift' ? ['giftsub', 'gift', 'sub'] : ['sub', 'newsub'],
+        toman_override: se ? null : finite(p.toman_override, 0, 1e12, 0) || null,
+        ...(se ? { currency: /^[A-Z]{3}$/.test(p.currency) ? p.currency : 'USD' } : {}),
+        created_at: typeof p.created_at === 'string' ? cleanText(p.created_at, 64) : undefined
+      };
+    }
+    // Older captured.json files have no captured flag; only the restore path trusts that legacy format.
+    if ((!restoring && !p.captured) || (p.source && p.source !== 'kickbot')) return null;
+    const t = normalizeTip(p);
+    return t.stripe_pi_id ? { ...t, captured: true } : null;
   }
   function connect() {
     if (stopped || !NODE_OK || !secret || !config.streamer_id) return;
@@ -1858,6 +1896,7 @@ function createServer(opts) {
       tip_message: cleanText(message, LIMITS.message),
       approval_status: 'approved',
       is_local: true,
+      source: 'kick',
       kind,
       count,
       tags,
@@ -2920,6 +2959,9 @@ function createServer(opts) {
         queueIds: () => approved.map(t => t.stripe_pi_id),
         pendingIds: () => pending.map(t => t.stripe_pi_id),
         kickbotEvent: (type, raw) => handleEvent(type, raw),
+        streamElementsActivity: a => handleSeActivity(a),
+        kickSubscription: (name, months) => handleSub(name, months),
+        kickGifts: (name, names) => handleGift(name, names),
         isPlayed: id => playedIds.has(id)
       }
     : undefined;
