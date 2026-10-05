@@ -1306,6 +1306,173 @@ test('disconnecting KickBot drops only its own tips (dashboard tests too); Kick 
   assert.equal(JSON.parse((await req('GET', '/api/config')).body).config.kickbot.configured, false);
 });
 
+test('KickBot queue sync ignores results from a disconnected, replaced or stopped connection', async t => {
+  const cases = [
+    ['current connection', 'headers', 'current'],
+    ['disconnect while fetching', 'headers', 'disconnect'],
+    ['disconnect while reading JSON', 'body', 'disconnect'],
+    ['replace key while reading JSON', 'body', 'replace'],
+    ['disconnect and reconnect with the same key', 'body', 'reconnect'],
+    ['set up the same key again', 'body', 'setup'],
+    ['stop while fetching', 'headers', 'stop'],
+    ['clear application data while reading JSON', 'body', 'clear'],
+    ['HTTP failure', 'headers', 'http-error'],
+    ['fetch failure', 'headers', 'fetch-error'],
+    ['JSON failure', 'body', 'json-error']
+  ];
+  for (const [name, phase, action] of cases) {
+    await t.test(name, { timeout: 5000 }, async t => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sahne-test-'));
+      const listener = http.createServer();
+      await new Promise(resolve => listener.listen(0, '127.0.0.1', resolve));
+      const port = listener.address().port;
+      await new Promise(resolve => listener.close(resolve));
+      const key = 'a'.repeat(32) + ':' + 'b'.repeat(32);
+      const replacement = 'c'.repeat(32) + ':' + 'd'.repeat(32);
+      fs.writeFileSync(
+        path.join(dir, 'config.json'),
+        JSON.stringify({
+          port,
+          secret_id: key,
+          streamer_id: 1,
+          rate: { auto: false },
+          kick: { enabled: false },
+          app: { autostart: false }
+        })
+      );
+      const requests = [];
+      t.mock.method(globalThis, 'fetch', async url => {
+        const u = new URL(url);
+        assert.equal(u.origin, 'https://widgets.kickbot.com', 'only the mocked KickBot API is used');
+        if (u.pathname.startsWith('/external/tipping/')) {
+          return { json: async () => ({ nodes: [{ data: [{ streamer_db_id: 1 }, 1] }] }) };
+        }
+        assert.equal(u.pathname, '/api/tip_queue_sync');
+        const headers = Promise.withResolvers();
+        const body = Promise.withResolvers();
+        const reading = Promise.withResolvers();
+        const response = {
+          ok: true,
+          json: () => {
+            reading.resolve();
+            return body.promise;
+          }
+        };
+        requests.push({ headers, body, reading, response, key: u.searchParams.get('secret_id') });
+        return headers.promise;
+      });
+      // Setup uses the real HTTP handler, but no test opens an external WebSocket.
+      t.mock.method(globalThis, 'WebSocket', function () {
+        return {
+          readyState: 0,
+          close() {
+            this.readyState = 3;
+            if (this.onclose) this.onclose({ code: 1000 });
+          }
+        };
+      });
+      const srv = createServer({
+        dataDir: dir,
+        publicDir: path.join(__dirname, '..', 'public'),
+        testHooks: { offline: true }
+      });
+      t.after(async () => {
+        for (const r of requests) {
+          r.body.resolve({ tip_transactions: [] });
+          r.headers.resolve(r.response);
+        }
+        await srv.stop();
+        fs.rmSync(dir, { recursive: true, force: true });
+      });
+      await srv.start();
+      const req = (method, p, body) =>
+        new Promise((resolve, reject) => {
+          const r = http.request(
+            {
+              host: '127.0.0.1',
+              port,
+              path: p,
+              method,
+              headers: { Origin: `http://127.0.0.1:${port}`, 'Content-Type': 'application/json' }
+            },
+            res => {
+              let data = '';
+              res.on('data', chunk => (data += chunk));
+              res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(data) }));
+            }
+          );
+          r.on('error', reject);
+          if (body) r.write(JSON.stringify(body));
+          r.end();
+        });
+      const tip = (id, status) => ({ stripe_pi_id: id, approval_status: status, amount_total: 500 });
+      srv.testHooks.kickbotEvent('tip_initiated', tip('pi_existing', 'pending'));
+      srv.testHooks.injectTip(parseSeActivity({ _id: 'sync', type: 'tip', data: { amount: 5, currency: 'USD' } }));
+      assert.equal((await req('POST', '/api/test-sub', { kind: 'sub', name: 'Test subscriber' })).status, 200);
+      assert.equal((await req('POST', '/api/test', { name: 'Test donor', amount: 5 })).status, 200);
+      const kept = srv.testHooks.queueIds();
+      const sync = srv.testHooks.syncKickbotQueue();
+      assert.equal(requests.length, 1);
+      const r = requests[0];
+      assert.equal(r.key, key, 'request uses the key of the connection that started it');
+      if (phase === 'body') {
+        r.headers.resolve(r.response);
+        await r.reading.promise;
+      }
+      if (action === 'disconnect' || action === 'reconnect') {
+        assert.equal((await req('POST', '/api/disconnect-kickbot')).status, 200);
+        assert.deepEqual(srv.testHooks.pendingIds(), []);
+        assert.equal((await req('GET', '/api/config')).body.config.kickbot.configured, false);
+      }
+      if (action === 'replace' || action === 'reconnect' || action === 'setup') {
+        const nextKey = action === 'replace' ? replacement : key;
+        assert.equal((await req('POST', '/api/setup', { url: nextKey })).status, 200);
+        const fresh = srv.testHooks.syncKickbotQueue();
+        const next = requests[1];
+        assert.equal(next.key, nextKey);
+        next.body.resolve({ tip_transactions: [tip('pi_fresh', 'approved')] });
+        next.headers.resolve(next.response);
+        await fresh;
+        assert.deepEqual(srv.testHooks.queueIds(), [...kept, 'pi_fresh'], 'a fresh sync still applies');
+        assert.deepEqual(srv.testHooks.pendingIds(), [], 'a fresh sync removes absent pending tips');
+      }
+      if (action === 'stop') await srv.stop();
+      if (action === 'clear') srv.clearData();
+      const before = { approved: srv.testHooks.queueIds(), pending: srv.testHooks.pendingIds() };
+      if (action === 'http-error') r.headers.resolve({ ok: false });
+      else if (action === 'fetch-error') r.headers.reject(new Error('mock network failure'));
+      else if (action === 'json-error') r.body.reject(new SyntaxError('mock invalid JSON'));
+      else {
+        r.body.resolve({
+          tip_transactions: [
+            tip('pi_existing', 'approved'),
+            tip('pi_synced', 'approved'),
+            tip('pi_pending_sync', 'pending')
+          ]
+        });
+        r.headers.resolve(r.response);
+      }
+      await sync;
+      if (action === 'current') {
+        assert.deepEqual(srv.testHooks.queueIds(), [...kept, 'pi_existing', 'pi_synced']);
+        assert.deepEqual(srv.testHooks.pendingIds(), ['pi_pending_sync']);
+      } else {
+        assert.deepEqual(srv.testHooks.queueIds(), before.approved, 'late or failed sync cannot change approved tips');
+        assert.deepEqual(srv.testHooks.pendingIds(), before.pending, 'late or failed sync cannot change pending tips');
+      }
+      if (action === 'disconnect' || action === 'stop' || action === 'clear') {
+        const attempted = srv.testHooks.syncKickbotQueue();
+        assert.equal(requests.length, 1, 'disconnected or stopped servers do not start another sync');
+        await attempted;
+      }
+      if (action === 'clear') {
+        assert.equal(fs.existsSync(path.join(dir, 'config.json')), false);
+        assert.equal(fs.existsSync(path.join(dir, 'captured.json')), false);
+      }
+    });
+  }
+});
+
 test('KickBot queue settings (pause/play, delay, mode, tipping on/off) are applied; values of the wrong type are ignored', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sahne-test-'));
   const port = 8900 + Math.floor(Math.random() * 100);
