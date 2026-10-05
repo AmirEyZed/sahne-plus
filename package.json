@@ -1,7 +1,7 @@
 {
   "name": "sahne-plus",
   "productName": "Sahne Plus",
-  "version": "1.3.9",
+  "version": "1.4.0",
   "description": "Sahne Plus — Kick / KickBot donation, sub and gift-sub alerts with local transparent media",
   "author": "AmirEyZed",
   "license": "Apache-2.0",
@@ -9,7 +9,7 @@
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/server.test.js test/update.test.js && node test/overlay-xss.test.js",
+    "test": "node --test test/server.test.js test/update.test.js test/analytics.test.js test/analytics-ui.test.js test/capture-pages.test.js && node test/overlay-xss.test.js",
     "icons": "electron scripts/render-icons.js",
     "screenshots": "electron scripts/capture-pages.js",
     "dist": "electron-builder --win --x64 --publish never",

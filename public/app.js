@@ -107,6 +107,7 @@ function goPage(name) {
   moveCapsule($(`.nav button[data-page="${name}"]`));
   if (name === 'look') setTimeout(fitPreview, 30);
   if (name === 'home') loadSim();
+  if (name === 'analytics' && window.ANALYTICS) window.ANALYTICS.open();
   if (name === 'about' && !$('#docView').textContent) showDoc('PRIVACY.md');
   if (name !== 'files') closeInspector();
   try {
@@ -240,7 +241,7 @@ function renderKb() {
   $('#kbSecret').textContent = kb.configured
     ? kb.secretStorage === 'os'
       ? 'ذخیره شده (رمزنگاری‌شده با ویندوز)'
-      : 'ذخیره شده (بدون رمزنگاری؛ DPAPI در دسترس نیست)'
+      : 'ذخیره شده (بدون رمزنگاری)'
     : 'وارد نشده';
   $('#btnDisconnect').disabled = !kb.configured;
   renderSe();
@@ -271,7 +272,7 @@ function renderSe() {
   $('#seSecret').textContent = se.configured
     ? se.secretStorage === 'os'
       ? 'ذخیره شده (رمزنگاری‌شده با ویندوز)'
-      : 'ذخیره شده (بدون رمزنگاری؛ DPAPI در دسترس نیست)'
+      : 'ذخیره شده (بدون رمزنگاری)'
     : 'وارد نشده';
   $('#btnSeDisconnect').disabled = !se.configured;
 }
@@ -307,6 +308,7 @@ function fillApp() {
   $('#autostart').checked = !!(INFO && INFO.autostart);
   $('#autostart').disabled = !DESK;
   $('#updCheck').checked = !(CFG.app && CFG.app.updateCheck === false);
+  $('#recHistory').checked = !(CFG.app && CFG.app.recordHistory === false);
   $('#updCheck').disabled = !DESK;
   $('#btnOpenData').disabled = !DESK;
   $('#btnOpenLog').disabled = !DESK;
@@ -320,7 +322,9 @@ function fillApp() {
   $('#abSecret').textContent =
     CFG.kickbot && CFG.kickbot.secretStorage === 'os'
       ? 'رمزنگاری‌شده با ویندوز (DPAPI)'
-      : 'متن ساده در config.json (DPAPI در دسترس نیست)';
+      : CFG.kickbot && CFG.kickbot.secretStorage === 'plain'
+        ? 'متن ساده در config.json (بدون رمزنگاری)'
+        : 'کلید ویجت وارد نشده';
   $('#abSec').textContent = INFO ? INFO.securityContact : '—';
 }
 $('#btnDisconnect').onclick = async () => {
@@ -382,6 +386,13 @@ $('#autostart').onchange = async e => {
 $('#updCheck').onchange = async e => {
   if (!(await saveSettings({ app: { updateCheck: e.target.checked } }))) return;
   toast(e.target.checked ? 'بررسی خودکار آپدیت روشن شد' : 'بررسی خودکار آپدیت خاموش شد', 'ok');
+};
+$('#recHistory').onchange = async e => {
+  await post('/api/config', { app: { recordHistory: e.target.checked } });
+  toast(
+    e.target.checked ? 'ثبت تاریخچه‌ی دونیت‌ها روشن شد' : 'ثبت تاریخچه‌ی دونیت‌ها خاموش شد (فایل‌های قبلی پاک نشدند)',
+    'ok'
+  );
 };
 // ---------- updates (desktop app only; checking, downloading and verifying happen in the main process) ----------
 let UPD = null,
@@ -654,6 +665,7 @@ content.addEventListener('drop', async e => {
 // ---------- inspector ----------
 let insT = null;
 function selectFile(id) {
+  clearTimeout(insT);
   selectedId = id;
   const f = (CFG.files || []).find(x => x.id === id);
   if (!f) return closeInspector();
@@ -675,10 +687,13 @@ function selectFile(id) {
   $('#iDur').value = f.duration ?? '';
   $('#iCardDelay').value = f.cardDelay ?? '';
   $('#iMinChip').textContent = fmtToman(f.minToman);
+  $('#insSaved').classList.remove('show');
+  validateInspectorRange();
   $('#inspector').hidden = false;
   $('#shell').classList.add('has-inspector');
 }
 function closeInspector() {
+  clearTimeout(insT);
   selectedId = null;
   $('#inspector').hidden = true;
   $('#shell').classList.remove('has-inspector');
@@ -690,6 +705,27 @@ function closeInspector() {
   }
 }
 $('#insClose').onclick = closeInspector;
+function setInspectorRangeError(message) {
+  const error = $('#iRangeError');
+  error.textContent = message;
+  error.hidden = !message;
+  for (const sel of ['#iMin', '#iMax']) {
+    $(sel).setAttribute('aria-invalid', message ? 'true' : 'false');
+    $(sel).setCustomValidity(message);
+  }
+}
+function validateInspectorRange() {
+  const min = $('#iMin'),
+    max = $('#iMax');
+  const message =
+    min.validity.badInput || max.validity.badInput
+      ? 'مبلغ معتبر وارد کنید'
+      : max.value !== '' && Number(min.value || 0) > Number(max.value)
+        ? 'حداقل مبلغ (تومان) نباید از حداکثر بیشتر باشد'
+        : '';
+  setInspectorRangeError(message);
+  return !message;
+}
 function collectInspector() {
   const num = v => (v === '' ? null : Number(v));
   return {
@@ -713,17 +749,24 @@ function collectInspector() {
     $('#iMinChip').textContent = fmtToman($('#iMin').value);
     clearTimeout(insT);
     $('#insSaved').classList.remove('show');
+    if (!validateInspectorRange()) return;
+    const id = selectedId;
     insT = setTimeout(async () => {
+      if (selectedId !== id || !validateInspectorRange()) return;
       const body = collectInspector();
       const r = await patch('/api/file', body);
+      const currentDraft = selectedId === id && JSON.stringify(collectInspector()) === JSON.stringify(body);
       if (r.ok) {
         const f = CFG.files.find(x => x.id === body.id);
         if (f) Object.assign(f, r.file);
         renderFiles();
-        const s = $('#insSaved');
-        s.classList.add('show');
-        setTimeout(() => s.classList.remove('show'), 1200);
-      } else toast(r.error || 'ذخیره نشد', 'err');
+        if (currentDraft) {
+          const s = $('#insSaved');
+          s.classList.add('show');
+          setTimeout(() => s.classList.remove('show'), 1200);
+        }
+      } else if (currentDraft && r.code === 'invalid_amount_range') setInspectorRangeError(r.error);
+      else if (currentDraft) toast(r.error || 'ذخیره نشد', 'err');
     }, 350);
   })
 );
@@ -1110,6 +1153,7 @@ function connectEvents() {
   const es = new EventSource('/events?role=admin');
   es.onmessage = ev => {
     const d = JSON.parse(ev.data);
+    if (window.ANALYTICS) window.ANALYTICS.onEvent(d); // the analytics page listens to state/log, handled below too
     if (d.type === 'state') {
       STATE = d.state;
       renderState();
