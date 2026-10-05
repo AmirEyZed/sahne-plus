@@ -471,6 +471,7 @@ function createServer(opts) {
   // ---------- config ----------
   // The KickBot secret never lives in `config` (and therefore never in config.json in plaintext when the OS store is available).
   let secret = ''; // in-memory only
+  let kickbotGeneration = 0; // setup/disconnect invalidate in-flight queue syncs, even when the same key is reused
   let seToken = ''; // StreamElements JWT, in-memory only
   let secretStorage = 'none'; // 'os' (DPAPI via Electron safeStorage) | 'plain' (fallback) | 'none'
   let config = loadConfig();
@@ -1036,13 +1037,16 @@ function createServer(opts) {
     sendState();
   }
   async function syncQueue() {
-    if (!secret) return;
+    if (stopped || !secret) return;
+    const generation = kickbotGeneration;
     try {
       const r = await fetch(`${KB_API}/api/tip_queue_sync?secret_id=${encodeURIComponent(secret)}`, {
         signal: AbortSignal.timeout(15000)
       });
       if (!r.ok) return;
       const j = await r.json();
+      // Both fetch and JSON parsing can outlive this connection. Do not let an old response refill its queue.
+      if (stopped || generation !== kickbotGeneration) return;
       applyQueueSync(Array.isArray(j.tip_transactions) ? j.tip_transactions : []);
     } catch (e) {
       log('warn', 'همگام‌سازی صف کیک‌بات ناموفق بود', e.name === 'TimeoutError' ? 'timeout' : e.message);
@@ -2578,6 +2582,7 @@ function createServer(opts) {
         if (!Number.isFinite(Number(streamer)))
           return json(res, 400, { error: 'کیک‌بات این لینک را نشناخت (Streamer ID پیدا نشد)' });
         secret = sec;
+        kickbotGeneration++;
         config.streamer_id = Number(streamer);
         saveConfig();
         log('info', 'لینک ویجت کیک‌بات تنظیم شد', { streamer_id: config.streamer_id, secretStorage });
@@ -2656,6 +2661,7 @@ function createServer(opts) {
       }
       if (p === '/api/disconnect-kickbot' && req.method === 'POST') {
         secret = '';
+        kickbotGeneration++;
         config.streamer_id = null;
         // drop only KickBot's tips (including its dashboard test tips); Kick subs, StreamElements tips and the app's own test alerts stay queued
         pending = pending.filter(t => t.source !== 'kickbot');
@@ -2868,6 +2874,7 @@ function createServer(opts) {
   const testHooks = opts.testHooks
     ? {
         kickbotSync: raw => applyQueueSync(raw),
+        syncKickbotQueue: () => syncQueue(),
         injectTip: t => {
           approved.push(t);
           tryNext();

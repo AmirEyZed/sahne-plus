@@ -8,6 +8,7 @@ All notable changes to the public builds. Versions follow semantic versioning.
 - New: `/api/analytics` (read-only) and `analytics-ui.js`. The page is computed entirely on this computer from the app's own data; nothing leaves it. See PRIVACY.md and docs/DATA_FLOW.md.
 - New: a Settings switch «ثبت تاریخچه‌ی دونیت‌ها روی این کامپیوتر» under «برنامه» stops recording the donation history. It is on by default; switching it off writes nothing new and keeps what was already recorded (delete it with «پاک کردن همه‌ی داده‌های برنامه»). PRIVACY.md section 3 describes the history, its files and its bounds.
 - Docs: refreshed the data-flow audit against 1.3.9 source, correcting updater networking and temporary files, StreamElements credential/API flows, proxy routing, configured-port handling and uninstall retention. Historical 1.0.1 runtime observations are distinguished from current source findings.
+- Fixed: a KickBot queue sync that finishes after disconnecting or changing the widget connection no longer puts old tips back in the queue. Reconnecting with the same key also ignores the previous connection's response.
 
 ## 1.3.9 — 2026-10-01
 

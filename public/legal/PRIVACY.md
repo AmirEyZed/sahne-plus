@@ -56,6 +56,8 @@ The Analytics page needs a record of past donations, so from the version that in
 
 If you configure a proxy in Settings, or Windows has a system proxy (for example a VPN app in "system proxy" mode), the kick.com and bonbast.com requests go through it — the manual proxy first, then the system proxy, then a direct connection — and baha24.com is retried through them if the direct request fails. Only plain HTTP proxies are used. The KickBot connection and Kick's chat feed do not use a proxy.
 
+KickBot queue-sync responses are ignored if the widget connection is disconnected or set up again, or the app stops, before the response is applied. A request already sent may still finish within its existing 15-second timeout; this does not cancel a request already received by KickBot.
+
 The update check can be turned off in Settings → «بررسی خودکار نسخه‌ی جدید». An update is downloaded only when you click «آپدیت»; the installer is verified against the release's `SHA256SUMS.txt` before it runs and replaces the program files only — your data in `Documents\Sahne Plus` stays. Update requests use Chromium's network stack, so a Windows system proxy is used automatically. If GitHub does not respond within 30 seconds, or the download receives no data for 60 seconds, the download is stopped and the partially downloaded file is deleted where possible; it is not retried automatically — click «آپدیت» again to retry.
 
 These third parties process the data they receive under **their own** privacy policies. Sahne Plus cannot control what KickBot, Kick, Pusher, baha24, Bonbast or GitHub do with a request once it reaches them.
