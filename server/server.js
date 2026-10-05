@@ -7,6 +7,8 @@ const tls = require('tls');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { computeAnalytics } = require('./analytics');
+const { createAnalyticsStore } = require('./analytics-store');
 
 // ---- third-party endpoints (documented in DATA_FLOW.md) ----
 const KB_WS = 'wss://kickbot.live/ws'; // KickBot tipping event stream (same source the official widget uses)
@@ -95,7 +97,7 @@ const DEFAULT_CONFIG = {
     showNewSubs: true
   },
   se: { channelId: null, username: null, provider: null }, // StreamElements account (the JWT token is stored separately, encrypted)
-  app: { autostart: true, updateCheck: true, updateNotifiedFor: null }
+  app: { autostart: true, updateCheck: true, updateNotifiedFor: null, recordHistory: true }
 };
 const FONTS = ['Vazirmatn', 'Estedad', 'Lalezar', 'Inter', 'Poppins', 'Segoe UI', 'Tahoma'];
 const ENUMS = {
@@ -423,13 +425,32 @@ const finite = (v, min, max, dflt) => {
   if (!Number.isFinite(n)) return dflt;
   return Math.min(max, Math.max(min, n));
 };
+const isHex = s => /^#[0-9a-f]{6}$/i.test(String(s || ''));
+
+/** A provider timestamp in milliseconds, never reading a UTC instant as local time. null when unparsable. */
+function parseEventTime(v) {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'number') return Number.isFinite(v) && v > 0 ? v : null;
+  const s = String(v).trim();
+  if (!s) return null;
+  const iso = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(s) ? s.replace(' ', 'T') + 'Z' : s;
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/** Analytics timezone override: minutes east of UTC, or null to use the machine's zone. */
+function parseTz(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < -720 || n > 840) return null;
+  return Math.round(n);
+}
 const intOrNull = (v, min, max) => {
   if (v === null || v === undefined || v === '') return null;
   const n = Number(v);
   if (!Number.isFinite(n)) return null;
   return Math.round(Math.min(max, Math.max(min, n)));
 };
-const isHex = s => /^#[0-9a-f]{6}$/i.test(String(s || ''));
 
 /**
  * @param {{ dataDir: string, publicDir: string, appVersion?: string, onLog?: Function, openPath?: Function,
@@ -480,6 +501,7 @@ function createServer(opts) {
       app: { ...DEFAULT_CONFIG.app, ...(c.app || {}) }
     };
     merged.app.updateCheck = merged.app.updateCheck !== false;
+    merged.app.recordHistory = merged.app.recordHistory !== false;
     if (!/^\d{1,4}\.\d{1,4}\.\d{1,4}$/.test(String(merged.app.updateNotifiedFor || '')))
       merged.app.updateNotifiedFor = null;
     // secret: encrypted field preferred; legacy plaintext migrated on first save
@@ -571,6 +593,43 @@ function createServer(opts) {
     };
   }
   if (!fs.existsSync(CFG_PATH)) saveConfig();
+
+  // ---------- donation history (Analytics) ----------
+  // The alert pipeline never depended on a history, so this store is fed from one place: the moment an alert is
+  // accepted for playback (showTip), plus the "skipped" outcome. Recording is best-effort and can never throw into
+  // the queue. See server/analytics-store.js for why a file and not a database.
+  const tzOffsetMin = -new Date().getTimezoneOffset(); // minutes east of UTC; the machine's zone is the app's zone
+  const analytics = createAnalyticsStore(DATA, { tz: tzOffsetMin });
+  // Settings → برنامه → «ثبت تاریخچه‌ی دونیت‌ها». Off means nothing new is written to disk; what was already stored stays
+  // until the user clears it, so turning the switch off never silently deletes data.
+  const historyOn = () => config.app.recordHistory !== false;
+  // Set the initial recording state on the analytics store
+  if (typeof analytics.setRecordingEnabled === 'function') {
+    analytics.setRecordingEnabled(historyOn());
+  }
+  function recordHistory(t, played) {
+    if (!historyOn()) return;
+    try {
+      analytics.record({
+        id: t.stripe_pi_id,
+        at: parseEventTime(t.created_at),
+        name: t.tipper_name,
+        amount: (t.amount_total || 0) / 100,
+        currency: t.currency || 'USD',
+        toman: tomanFor(t),
+        rate: fxRate(t.currency || 'USD'),
+        kind: t.kind || 'tip',
+        source: t.source || (t.is_local ? 'kick' : 'kickbot'),
+        count: t.count || null,
+        tags: t.tags || [],
+        // A test tip must be stored as one, not as a real donation: the engine filters test/preview events out by
+        // default and only includes them on an explicit request. Without this flag every /api/test alert would
+        // inflate the page permanently.
+        test: !!t.is_test,
+        played
+      });
+    } catch {}
+  }
 
   // ---------- validation ----------
   function sanitizeFile(f) {
@@ -769,6 +828,17 @@ function createServer(opts) {
         fs.writeFileSync(PLAYED_PATH, JSON.stringify(playedOrder));
       } catch {}
     }, 500);
+  }
+
+  /** Merge the store's donor index (survives rollup) with what the loaded window shows, keeping the earliest. */
+  function buildDonorFirstSeen(data) {
+    const map = new Map(analytics.donors());
+    for (const it of data.items) {
+      if (!Number.isFinite(it.at) || !it.name) continue;
+      const prev = map.get(it.name);
+      if (prev === undefined || it.at < prev) map.set(it.name, it.at);
+    }
+    return map;
   }
 
   // ---------- KickBot connection ----------
@@ -1922,14 +1992,9 @@ function createServer(opts) {
     const media = pickMedia(t);
     if (!media && config.showAlertWithoutMedia === false) {
       log('info', 'آلرت بدون فایل نمایش داده نشد (طبق تنظیمات)', tipSummary(t));
-      recent.unshift({
-        ...tipSummary(t),
-        toman: tomanFor(t),
-        media: null,
-        skipped: true,
-        at: Date.now()
-      });
+      recent.unshift({ ...tipSummary(t), toman: tomanFor(t), media: null, skipped: true, at: Date.now() });
       if (recent.length > 30) recent.pop();
+      recordHistory(t, false); // visible in Analytics as a skipped alert, never as a donation that played
       if (config.mode !== 'companion' && playing && playing.stripe_pi_id === t.stripe_pi_id) {
         if (!t.is_test && !t.is_local) publish('tip_end', { stripe_pi_id: t.stripe_pi_id });
         playing = null;
@@ -1942,6 +2007,7 @@ function createServer(opts) {
     const payload = buildPayload(t, media);
     recent.unshift({ ...tipSummary(t), toman: payload.toman, media: media ? media.name : null, at: Date.now() });
     if (recent.length > 30) recent.pop();
+    recordHistory(t, true); // the single point where a donation becomes history, for every provider
     log('info', 'نمایش دونیت', { ...tipSummary(t), media: media ? media.file : '-' });
     broadcast('overlay', { type: 'play', tip: payload });
     clearTimeout(playTimeout);
@@ -2140,7 +2206,7 @@ function createServer(opts) {
     return LOCAL_HOSTS.some(n => s === `http://${n}:${config.port}`);
   };
   const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-  const STATIC = /^\/(app\.css|app\.js|overlay\.css|overlay\.js)$/;
+  const STATIC = /^\/(app\.css|app\.js|analytics-ui\.js|overlay\.css|overlay\.js)$/;
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x');
@@ -2249,8 +2315,14 @@ function createServer(opts) {
           config.app = {
             ...config.app,
             autostart: body.app.autostart === undefined ? config.app.autostart : !!body.app.autostart,
-            updateCheck: body.app.updateCheck === undefined ? config.app.updateCheck !== false : !!body.app.updateCheck
+            updateCheck: body.app.updateCheck === undefined ? config.app.updateCheck !== false : !!body.app.updateCheck,
+            recordHistory:
+              body.app.recordHistory === undefined ? config.app.recordHistory !== false : !!body.app.recordHistory
           };
+        // Keep the analytics store in sync with the recording switch
+        if (typeof analytics.setRecordingEnabled === 'function') {
+          analytics.setRecordingEnabled(historyOn());
+        }
         if (body.kick && typeof body.kick === 'object') {
           const k = body.kick,
             prevSlug = config.kick.channel,
@@ -2653,6 +2725,41 @@ function createServer(opts) {
         return json(res, 200, { ok: !!opts.openPath });
       }
       if (p === '/api/logs' && req.method === 'GET') return json(res, 200, { logs });
+      // ---- analytics: aggregates the stored donation history with the app's own exchange-rate system ----
+      if (p === '/api/analytics' && req.method === 'GET') {
+        try {
+          analytics.flush(); // fold a just-queued record into the file before reading, so a refresh is up to date
+          const data = analytics.load();
+          data.months.sort((a, b) => (a.month < b.month ? -1 : 1));
+          const result = computeAnalytics(data.items, {
+            range: url.searchParams.get('range') || 'today',
+            from: url.searchParams.get('from') || undefined,
+            to: url.searchParams.get('to') || undefined,
+            now: Date.now(),
+            tz: parseTz(url.searchParams.get('tz')) ?? tzOffsetMin,
+            includeTests: url.searchParams.get('includeTests') === '1',
+            rate: {
+              value: config.rate.value,
+              manual: config.rate.manual,
+              source: config.rate.source,
+              updatedAt: config.rate.updatedAt
+            },
+            coverage: data.coverage,
+            donorFirstSeen: buildDonorFirstSeen(data)
+          });
+          result.months = data.months; // rolled-up totals for months whose detail was dropped
+          result.recording = historyOn(); // the page says so when new donations are no longer being stored
+          if (!result.recording) result.notes = [...(result.notes || []), { code: 'recording-off' }];
+          return json(res, 200, result);
+        } catch (e) {
+          // Invalid range parameters are a client error (400), not a server failure (500)
+          if (e && /^(invalid_|out_of_range_|from_after_to|missing_custom_range)/.test(e.message)) {
+            return json(res, 400, { ok: false, error: e.message });
+          }
+          log('error', 'محاسبه‌ی آمار ناموفق بود', e.message);
+          return json(res, 500, { ok: false, error: 'analytics failed' });
+        }
+      }
       res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(
         `<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><body style="margin:0;background:#141416;color:#F7F5F2;font-family:Vazirmatn,Tahoma,sans-serif;display:grid;place-items:center;height:100vh"><div style="text-align:center;line-height:2"><div style="font-size:22px;font-weight:700">این آدرس وجود ندارد</div><div style="color:#B0ACA7">آدرس Browser Source برای Meld / OBS:</div><code style="direction:ltr;display:inline-block;background:#1B1B1D;padding:6px 14px;border-radius:8px;font-size:18px">http://localhost:${config.port}/overlay</code></div></body></html>`
@@ -2718,6 +2825,14 @@ function createServer(opts) {
       fs.writeFileSync(PLAYED_PATH, JSON.stringify(playedOrder));
     } catch {}
     try {
+      // PRIVACY.md promises that nothing new is written while the recording switch is off. A rollup rewrites
+      // analytics-donors.json and the rollup summaries, so it must be skipped entirely while recording is disabled.
+      if (historyOn()) {
+        analytics.flush(); // never lose a donation that happened in the last few hundred milliseconds
+        analytics.rollup();
+      }
+    } catch {}
+    try {
       if (ws) ws.close();
     } catch {}
     try {
@@ -2731,9 +2846,13 @@ function createServer(opts) {
       }
     return new Promise(r => server.close(() => r()));
   }
-  // wipe everything this app manages (config, media, played memory). The caller confirms with the user first.
+  // wipe everything this app manages (config, media, played memory, analytics history). The caller confirms with the user first.
   function clearData() {
     stop().catch(() => {});
+    // clear() stops the store so an in-flight capture cannot write a month file back after the deletion. The app
+    // restarts afterwards, but re-arming it here keeps the store usable in the same process (and for tests).
+    analytics.clear();
+    analytics.resume(historyOn());
     for (const f of fs.readdirSync(MEDIA)) {
       try {
         fs.unlinkSync(path.join(MEDIA, f));
@@ -2760,6 +2879,10 @@ function createServer(opts) {
           approved.push(t);
           tryNext();
         },
+        // the value KickBot sends as `queue_delay`, so a test can drop the inter-alert gap instead of waiting it out
+        setQueueDelay: s => {
+          queueDelay = finite(s, 0, 600, queueDelay);
+        },
         queueLength: () => approved.length,
         queueIds: () => approved.map(t => t.stripe_pi_id),
         pendingIds: () => pending.map(t => t.stripe_pi_id),
@@ -2774,6 +2897,7 @@ function createServer(opts) {
     importFiles,
     log,
     saveConfig,
+    analytics,
     testHooks,
     get port() {
       return config.port;
@@ -2811,5 +2935,7 @@ module.exports = {
   fxFromBaha24,
   fxFromBonbast,
   sanitizeFx,
-  FX_CODES
+  FX_CODES,
+  parseEventTime,
+  parseTz
 };
