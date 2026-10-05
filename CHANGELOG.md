@@ -12,6 +12,7 @@ All notable changes to the public builds. Versions follow semantic versioning.
 - Fixed: StreamElements could show its token as encrypted when only the KickBot key was encrypted. Each connection now reports its own stored credential protection, including plaintext fallback when encryption fails, legacy-credential migration, and removal on disconnect. A failed config save does not change the reported protection.
 - Fixed: a media file could be saved with its minimum amount above its maximum, so it never matched an alert. Edited toman and legacy dollar ranges now reject that ordering without changing saved settings. The file inspector keeps an invalid draft editable, shows an inline error, and resumes autosave once the range is valid. Equal bounds and an empty maximum are allowed; existing entries remain available for correction.
 - CI: run the existing tests, formatting check and credential scan on Windows as well as Ubuntu for pull requests and pushes to main. Both jobs use Node 22 and skip the Electron binary download; installer builds remain in the release workflow.
+- Tooling: the screenshot script accepts an optional port after the output directory, so it can capture an isolated instance such as port 7799 instead of always using 7788. Invalid ports stop the script before a capture window opens; the default port and output directory are unchanged.
 
 ## 1.3.9 — 2026-10-01
 
