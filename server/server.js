@@ -2068,12 +2068,17 @@ function createServer(opts) {
     recordHistory(t, true); // the single point where a donation becomes history, for every provider
     log('info', 'نمایش دونیت', { ...tipSummary(t), media: media ? media.file : '-' });
     broadcast('overlay', { type: 'play', tip: payload });
-    clearTimeout(playTimeout);
-    playTimeout = setTimeout(
-      () => finishPlaying(t.stripe_pi_id, false, true),
-      (config.appearance.maxDuration + 15) * 1000
-    );
+    armPlayTimeout(t.stripe_pi_id, config.appearance.maxDuration);
     sendState();
+  }
+  // The queue moves on by itself if the Browser Source never reports the end (closed OBS, a stuck file): after the
+  // maximum duration, or after the media length the Browser Source reported (/api/extend), plus 15 s.
+  let playTimeoutAt = 0;
+  function armPlayTimeout(id, seconds) {
+    clearTimeout(playTimeout);
+    const ms = (seconds + 15) * 1000;
+    playTimeoutAt = Date.now() + ms;
+    playTimeout = setTimeout(() => finishPlaying(id, false, true), ms);
   }
   function finishPlaying(id, rejected, timedOut) {
     if (config.mode === 'companion') return;
@@ -2781,6 +2786,18 @@ function createServer(opts) {
         finishPlaying(String(body.id || ''), false, false);
         return json(res, 200, { ok: true });
       }
+      if (p === '/api/extend' && req.method === 'POST') {
+        // the Browser Source found that the playing media is longer than the maximum duration (bounded like a file's
+        // own duration); only ever extends the timer of the alert that is playing
+        const body = await readJson(req);
+        const id = String(body.id || '');
+        const seconds = finite(body.seconds, 0, 3600, 0);
+        if (config.mode !== 'companion' && playing && playing.stripe_pi_id === id && seconds > 0) {
+          const left = playTimeoutAt - Date.now();
+          if ((seconds + 15) * 1000 > left) armPlayTimeout(id, seconds);
+        }
+        return json(res, 200, { ok: true });
+      }
       if (p === '/api/skip' && req.method === 'POST') {
         broadcast('overlay', { type: 'stop' });
         if (playing) finishPlaying(playing.stripe_pi_id, false, false);
@@ -2962,7 +2979,8 @@ function createServer(opts) {
         streamElementsActivity: a => handleSeActivity(a),
         kickSubscription: (name, months) => handleSub(name, months),
         kickGifts: (name, names) => handleGift(name, names),
-        isPlayed: id => playedIds.has(id)
+        isPlayed: id => playedIds.has(id),
+        playTimeoutLeft: () => (playing ? playTimeoutAt - Date.now() : null)
       }
     : undefined;
   return {

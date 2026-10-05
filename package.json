@@ -9,7 +9,7 @@
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/server.test.js test/update.test.js test/analytics.test.js test/analytics-ui.test.js test/capture-pages.test.js && node test/overlay-xss.test.js",
+    "test": "node --test test/server.test.js test/update.test.js test/analytics.test.js test/analytics-ui.test.js test/capture-pages.test.js test/long-media.test.js && node test/overlay-xss.test.js && node test/overlay-long-media.test.js",
     "icons": "electron scripts/render-icons.js",
     "screenshots": "electron scripts/capture-pages.js",
     "dist": "electron-builder --win --x64 --publish never",

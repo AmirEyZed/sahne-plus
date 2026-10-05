@@ -46,8 +46,9 @@ Endpoints (all under `http://127.0.0.1:7788`):
 | `/api/rate`, `/api/meld-reload`, `/api/skip`, `/api/clear-queue`, `/api/open-media-folder`, `/api/logs` | POST / GET | controller | actions |
 | `/api/analytics` | GET | controller | read-only aggregation of the recorded donation history (`range=today\|week\|month\|custom`, `from`/`to`, `tz` = minutes east of UTC, `includeTests=1`). Computed by `server/analytics.js` from `analytics-*.ndjson`; never mutates anything. A malformed, reversed or out-of-range custom `from`/`to` is answered with **400**, never silently replaced by today |
 | `/api/done` | POST | Browser Source | `{id}` — tells the queue the alert finished |
+| `/api/extend` | POST | Browser Source | `{id, seconds}` — the playing alert's video/audio runs `seconds` longer than the server expects (its length is past the maximum duration, or it is still advancing at the maximum); moves the server's safety timer behind that, never earlier (at most 1 hour from now, only for the alert that is playing) |
 
-The Browser Source therefore has access to: the overlay page, static assets, media files, the overlay SSE feed and `/api/done`. It can also technically reach the controller endpoints (same origin), which is inherent to a loopback web UI; the controller endpoints are protected against *other* origins, not against the overlay page itself. Neither provider credential is retrievable from an endpoint. The configured proxy URL is part of the public config and may contain user-entered proxy credentials (§5).
+The Browser Source therefore has access to: the overlay page, static assets, media files, the overlay SSE feed, `/api/done` and `/api/extend`. It can also technically reach the controller endpoints (same origin), which is inherent to a loopback web UI; the controller endpoints are protected against *other* origins, not against the overlay page itself. Neither provider credential is retrievable from an endpoint. The configured proxy URL is part of the public config and may contain user-entered proxy credentials (§5).
 
 ## 3. Outbound network connections (complete list)
 
