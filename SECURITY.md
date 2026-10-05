@@ -8,8 +8,8 @@ The source code of Sahne+ is public in this repository under the Apache License 
 
 | Version | Supported |
 |---|---|
-| 1.3.x (current) | yes — security fixes |
-| 1.2.x and older | no — please upgrade |
+| 1.4.x (current) | yes — security fixes |
+| 1.3.x and older | no — please update (one click in the app since 1.3.1) |
 
 Only the latest release on the [Releases](https://github.com/AmirEyZed/sahne-plus/releases) page receives fixes.
 

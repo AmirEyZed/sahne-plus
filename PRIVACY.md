@@ -1,6 +1,6 @@
 # Sahne Plus — Privacy Policy
 
-_Last updated: 2026-09-30 · Applies to Sahne Plus 1.1.0 and later (the update check exists since 1.3.1; the local Analytics page and its switchable donation history are described in section 3)_
+_Last updated: 2026-10-05 · Applies to Sahne Plus 1.1.0 and later (the update check exists since 1.3.1; the local Analytics page and its switchable donation history are described in section 3)_
 
 **خلاصه‌ی فارسی:** Sahne Plus هیچ سرور ابری ندارد. فایل‌های الرت، تنظیمات، لاگ‌ها و تاریخچه‌ی دونیت‌ها فقط روی کامپیوتر شما (پوشه‌ی `Documents\Sahne Plus`) ذخیره می‌شوند. برنامه فقط به سرویس‌هایی وصل می‌شود که برای کارکردش لازم‌اند: کیک‌بات (دونیت‌ها)، فید چت عمومی کیک (ساب‌ها)، baha24.com یا bonbast.com (نرخ دلار) و از نسخه‌ی ۱.۳.۱ گیت‌هاب، فقط برای دیدن شماره‌ی آخرین نسخه (از «تنظیمات» قابل خاموش کردن است). هیچ آپدیتی بدون کلیک شما دانلود یا نصب نمی‌شود. آمار و ردیابیِ بیرونی (یعنی فرستادن داده به ما یا به شخص ثالث) وجود ندارد؛ صفحه‌ی «آمار» فقط روی همین کامپیوتر و از روی داده‌ی خودِ برنامه حساب می‌کند و ثبت آن از «تنظیمات» قابل خاموش کردن است. تبلیغات و گزارش خطای خودکار هم وجود ندارد. ما هیچ داده‌ای از شما دریافت یا فروش نمی‌کنیم، چون اصلاً به ما نمی‌رسد.
 
@@ -80,7 +80,7 @@ Donation and subscription events contain the names and messages of your viewers.
 
 - **In the app:** Settings → "Clear application data" deletes `config.json`, `played.json`, `captured.json` and everything in `media\`, and the donation history files (`analytics-*.ndjson`, `analytics-donors.json`, `analytics-rollup\`) which are stored next to `config.json` in `Documents\Sahne Plus` — after a confirmation, then restarts the app. Settings → "Disconnect KickBot" removes the widget key and waiting KickBot alerts. Disconnecting StreamElements removes its token and waiting StreamElements alerts; other providers' waiting alerts stay queued. "Reset settings" restores defaults without touching media or the history. To stop new donations from being recorded, use the switch «ثبت تاریخچه‌ی دونیت‌ها» in Settings → «برنامه».
 - **Manually:** delete the folder `Documents\Sahne Plus`.
-- **Uninstalling** the application removes the program files and Electron's profile folder (`%APPDATA%\SahnePlus`) but **does not** delete `Documents\Sahne Plus`, so your media survives a reinstall.
+- **Uninstalling** the application removes the program files only. It **does not** delete `Documents\Sahne Plus` (so your media and settings survive a reinstall) or Electron's profile folder `%APPDATA%\SahnePlus` (browser cache and the last opened page). To leave nothing behind, delete both folders yourself after uninstalling.
 - **Autostart:** the uninstaller also removes the "run at Windows login" registry entry (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run\SahnePlus`), so nothing of the program is left in the registry.
 
 ## 8. Security of the local server
