@@ -88,7 +88,12 @@ let turnAnim = null;
 function goPage(name) {
   const from = $('.page.active'),
     order = $$('.nav button').map(b => b.dataset.page);
-  $$('.nav button').forEach(b => b.classList.toggle('active', b.dataset.page === name));
+  $$('.nav button').forEach(b => {
+    const on = b.dataset.page === name;
+    b.classList.toggle('active', on);
+    if (on) b.setAttribute('aria-current', 'page');
+    else b.removeAttribute('aria-current');
+  });
   moveCapsule($(`.nav button[data-page="${name}"]`));
   if (name !== 'files') closeInspector();
   try {
