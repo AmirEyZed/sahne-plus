@@ -6,6 +6,10 @@ All notable changes to the public builds. Versions follow semantic versioning.
 
 - Fixed: edited settings, appearance autosave, media properties and reset could report success even when config.json could not be saved. Failed saves now keep the previous active settings, show an error and allow retry; desktop autostart also restores its previous setting if persistence fails.
 
+## 1.4.1 — 2026-10-06
+
+- Fixed: a video or audio alert longer than «حداکثر مدت» (90 seconds by default) stopped in the middle. It now plays to its end, or to the file's own «قطع بعد از»; «حداکثر مدت» remains the limit for alerts whose length is unknown (an image without its own duration, a KickBot GIF) and the safety net for a stuck file. A file without a stored length (some recordings) keeps playing while its position advances, and still ends if it stalls. The Browser Source tells the server how much longer the alert runs (new `/api/extend`), so the queue does not move on while the video is still playing; at most one hour.
+
 ## 1.4.0 — 2026-10-05
 
 - New: **آمار (Analytics)** page. From the moment this version is installed, every donation whose alert is shown is recorded locally (id, time, donor, amount + currency, toman value and rate at that instant, kind, source, whether the alert played) and the page aggregates it: totals in dollar and toman, count, average, median, largest, smallest, unique / repeat / new / returning donors, daily and hourly activity, top donors, amount buckets, per-kind and per-source breakdown, and a weekday × hour heatmap (hidden while the sample is too small to mean anything). Ranges: today, this week (Saturday-anchored), this month (Persian calendar), or a custom span. Toman values are the ones recorded at donation time, not today's rate — the page says so explicitly. History is bounded: one file per month, at most 5000 events a day, months older than the newest three collapsed into a monthly summary (thanks [1tzArad](https://github.com/1tzArad), [#6](https://github.com/AmirEyZed/sahne-plus/pull/6)).
