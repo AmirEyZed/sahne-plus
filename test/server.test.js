@@ -2,6 +2,7 @@
 'use strict';
 require('./provider-queue.test');
 const test = require('node:test');
+require('./settings-save.test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');

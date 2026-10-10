@@ -286,11 +286,15 @@ ipcMain.handle('app:openPath', (e, which) => {
 ipcMain.handle('app:autostart', (e, on) => {
   if (!fromMain(e)) return false;
   if (typeof on === 'boolean') {
+    const previous = autostartGet();
     const r = autostartSet(on);
-    try {
-      server.config.app.autostart = on;
-      server.saveConfig();
-    } catch {}
+    const saved = server.config.app.autostart;
+    server.config.app.autostart = r;
+    if (!server.saveConfig()) {
+      server.config.app.autostart = saved;
+      autostartSet(previous);
+      throw new Error('تنظیمات اجرای خودکار ذخیره نشد');
+    }
     return r;
   }
   return autostartGet();

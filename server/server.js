@@ -548,8 +548,8 @@ function createServer(opts) {
     if (!ENUMS.mode.includes(merged.mode)) merged.mode = 'standalone';
     return merged;
   }
-  function serializedConfig() {
-    const out = { ...config };
+  function serializedConfig(candidate = config) {
+    const out = { ...candidate };
     if (secret) {
       if (store && store.available()) {
         try {
@@ -575,18 +575,33 @@ function createServer(opts) {
     }
     return out;
   }
-  function saveConfig() {
+  function saveConfig(candidate = config) {
     try {
       const tmp = CFG_PATH + '.tmp';
-      const out = serializedConfig();
+      const out = serializedConfig(candidate);
       fs.writeFileSync(tmp, JSON.stringify(out, null, 2));
       fs.renameSync(tmp, CFG_PATH);
       // Report the committed fields, not OS availability or an unsuccessful save attempt.
       secretStorage = out.secret_id_enc ? 'os' : out.secret_id ? 'plain' : 'none';
       seTokenStorage = out.se_token_enc ? 'os' : out.se_token ? 'plain' : 'none';
+      return true;
     } catch (e) {
       log('error', 'ذخیره‌ی config.json ناموفق بود', e.message);
+      return false;
     }
+  }
+  function commitSettings(candidate) {
+    // Keep the live configuration and its consumers unchanged until the atomic save succeeds.
+    if (!saveConfig(candidate)) return false;
+    Object.assign(config, candidate);
+    return true;
+  }
+  function settingsSaveError(res) {
+    return json(res, 500, {
+      ok: false,
+      code: 'settings_save_failed',
+      error: 'تنظیمات ذخیره نشد؛ فضای دیسک و دسترسی به پوشه‌ی برنامه را بررسی کنید و دوباره تلاش کنید'
+    });
   }
   // what the controller UI may see: everything except the secret
   function publicConfig() {
@@ -601,7 +616,6 @@ function createServer(opts) {
       }
     };
   }
-  if (!fs.existsSync(CFG_PATH)) saveConfig();
 
   // ---------- donation history (Analytics) ----------
   // The alert pipeline never depended on a history, so this store is fed from one place: the moment an alert is
@@ -2362,11 +2376,14 @@ function createServer(opts) {
         });
       if (p === '/api/config' && req.method === 'POST') {
         const body = await readJson(req);
+        const next = structuredClone(config);
+        const prevEnabled = config.kick.enabled;
+        if (body.appearance) next.appearance = sanitizeAppearance(body.appearance);
         const fileUpdates = new Map();
         if (Array.isArray(body.files)) {
           // update existing entries by id; unknown ids are ignored and nothing is removed (use DELETE /api/file)
           for (const raw of body.files) {
-            const cur = raw && config.files.find(x => x.id === raw.id);
+            const cur = raw && next.files.find(x => x.id === raw.id);
             if (!cur) continue;
             const previous = fileUpdates.get(cur.id)?.[1] || cur;
             const merged = sanitizeFile({ ...previous, ...raw, id: cur.id, file: cur.file, size: cur.size });
@@ -2376,47 +2393,59 @@ function createServer(opts) {
             fileUpdates.set(cur.id, [cur, merged]);
           }
         }
-        // Commit only after every edited range passes, including repeated ids in the same batch.
-        if (body.appearance) config.appearance = sanitizeAppearance(body.appearance);
+        // Every edited range passed: stage the file edits in the candidate (repeated ids in one batch build on each other).
         for (const [cur, merged] of fileUpdates.values()) Object.assign(cur, merged);
-        if (body.mode && ENUMS.mode.includes(body.mode)) config.mode = body.mode;
-        if (typeof body.showAlertWithoutMedia === 'boolean') config.showAlertWithoutMedia = body.showAlertWithoutMedia;
+        if (body.mode && ENUMS.mode.includes(body.mode)) next.mode = body.mode;
+        if (typeof body.showAlertWithoutMedia === 'boolean') next.showAlertWithoutMedia = body.showAlertWithoutMedia;
         if (body.app && typeof body.app === 'object')
-          config.app = {
-            ...config.app,
-            autostart: body.app.autostart === undefined ? config.app.autostart : !!body.app.autostart,
-            updateCheck: body.app.updateCheck === undefined ? config.app.updateCheck !== false : !!body.app.updateCheck,
+          next.app = {
+            ...next.app,
+            autostart: body.app.autostart === undefined ? next.app.autostart : !!body.app.autostart,
+            updateCheck: body.app.updateCheck === undefined ? next.app.updateCheck !== false : !!body.app.updateCheck,
             recordHistory:
-              body.app.recordHistory === undefined ? config.app.recordHistory !== false : !!body.app.recordHistory
+              body.app.recordHistory === undefined ? next.app.recordHistory !== false : !!body.app.recordHistory
           };
-        // Keep the analytics store in sync with the recording switch
-        if (typeof analytics.setRecordingEnabled === 'function') {
-          analytics.setRecordingEnabled(historyOn());
-        }
         if (body.kick && typeof body.kick === 'object') {
           const k = body.kick,
-            prevSlug = config.kick.channel,
-            prevEnabled = config.kick.enabled;
-          const next = { ...config.kick };
-          if ('enabled' in k) next.enabled = !!k.enabled;
-          if ('showNewSubs' in k) next.showNewSubs = !!k.showNewSubs;
-          if ('giftValueToman' in k) next.giftValueToman = finite(k.giftValueToman, 0, 1e12, 0);
-          if ('subValueToman' in k) next.subValueToman = finite(k.subValueToman, 0, 1e12, 0);
+            prevSlug = next.kick.channel;
+          const kick = { ...next.kick };
+          if ('enabled' in k) kick.enabled = !!k.enabled;
+          if ('showNewSubs' in k) kick.showNewSubs = !!k.showNewSubs;
+          if ('giftValueToman' in k) kick.giftValueToman = finite(k.giftValueToman, 0, 1e12, 0);
+          if ('subValueToman' in k) kick.subValueToman = finite(k.subValueToman, 0, 1e12, 0);
           if (typeof k.channel === 'string')
-            next.channel = k.channel
+            kick.channel = k.channel
               .trim()
               .toLowerCase()
               .replace(/^https?:\/\/(www\.)?kick\.com\//, '')
               .replace(/^@/, '')
               .replace(/[^a-z0-9_.-]/g, '')
               .slice(0, 40);
-          config.kick = next;
-          if (config.kick.channel !== prevSlug) {
-            config.kick.chatroomId = null;
-            config.kick.channelId = null;
-            config.kick.resolvedFor = null;
+          next.kick = kick;
+          if (next.kick.channel !== prevSlug) {
+            next.kick.chatroomId = null;
+            next.kick.channelId = null;
+            next.kick.resolvedFor = null;
           }
-          saveConfig();
+        }
+        if (body.rate && typeof body.rate === 'object') {
+          const r = body.rate;
+          next.rate = {
+            ...next.rate,
+            auto: !!r.auto,
+            manual: intOrNull(r.manual, 1000, 1e9),
+            intervalMin: Math.max(LIMITS.minRateInterval, finite(r.intervalMin, LIMITS.minRateInterval, 1440, 2)),
+            proxy: /^(https?:\/\/[^\s]{1,200})?$/.test(String(r.proxy ?? '').trim())
+              ? String(r.proxy ?? '').trim()
+              : next.rate.proxy
+          };
+        }
+        if (!commitSettings(next)) return settingsSaveError(res);
+        // Keep the analytics store in sync with the committed recording switch
+        if (typeof analytics.setRecordingEnabled === 'function') {
+          analytics.setRecordingEnabled(historyOn());
+        }
+        if (body.kick && typeof body.kick === 'object') {
           if (kws) {
             try {
               kws.close();
@@ -2430,20 +2459,9 @@ function createServer(opts) {
           else if (prevEnabled) kickState.connected = false;
         }
         if (body.rate && typeof body.rate === 'object') {
-          const r = body.rate;
-          config.rate = {
-            ...config.rate,
-            auto: !!r.auto,
-            manual: intOrNull(r.manual, 1000, 1e9),
-            intervalMin: Math.max(LIMITS.minRateInterval, finite(r.intervalMin, LIMITS.minRateInterval, 1440, 2)),
-            proxy: /^(https?:\/\/[^\s]{1,200})?$/.test(String(r.proxy ?? '').trim())
-              ? String(r.proxy ?? '').trim()
-              : config.rate.proxy
-          };
           scheduleRate();
           if (config.rate.auto) refreshRate(false);
         }
-        saveConfig();
         broadcast('overlay', { type: 'config', appearance: config.appearance });
         broadcast('preview', { type: 'config', appearance: config.appearance });
         sendState();
@@ -2457,10 +2475,10 @@ function createServer(opts) {
         if (!merged) return json(res, 400, { error: 'invalid' });
         const error = fileRangeError(merged, body);
         if (error) return json(res, 400, { error, code: 'invalid_amount_range' });
-        Object.assign(f, merged);
-        saveConfig();
+        const next = { ...config, files: config.files.map(x => (x.id === f.id ? merged : x)) };
+        if (!commitSettings(next)) return settingsSaveError(res);
         sendState();
-        return json(res, 200, { ok: true, file: f });
+        return json(res, 200, { ok: true, file: merged });
       }
       if (p === '/api/upload' && (req.method === 'PUT' || req.method === 'POST')) {
         const orig = decodeURIComponent(url.searchParams.get('name') || 'file');
@@ -2756,10 +2774,14 @@ function createServer(opts) {
       }
       if (p === '/api/reset-settings' && req.method === 'POST') {
         // appearance, kick, rate and mode go back to defaults; files, the KickBot connection and app options are kept
-        config.appearance = { ...DEFAULT_CONFIG.appearance };
-        config.rate = { ...DEFAULT_CONFIG.rate, proxy: '' };
-        config.mode = 'standalone';
-        config.kick = { ...DEFAULT_CONFIG.kick };
+        const next = {
+          ...config,
+          appearance: { ...DEFAULT_CONFIG.appearance },
+          rate: { ...DEFAULT_CONFIG.rate, proxy: '' },
+          mode: 'standalone',
+          kick: { ...DEFAULT_CONFIG.kick }
+        };
+        if (!commitSettings(next)) return settingsSaveError(res);
         if (kws) {
           try {
             kws.close();
@@ -2767,7 +2789,6 @@ function createServer(opts) {
           kws = null;
         }
         kickState.connected = false;
-        saveConfig();
         scheduleRate();
         broadcast('overlay', { type: 'config', appearance: config.appearance });
         broadcast('preview', { type: 'config', appearance: config.appearance });
@@ -2959,6 +2980,9 @@ function createServer(opts) {
         } catch {}
       }
   }
+
+  // Initial-save errors can be logged safely only after log buffers and SSE clients exist.
+  if (!fs.existsSync(CFG_PATH)) saveConfig();
 
   const testHooks = opts.testHooks
     ? {

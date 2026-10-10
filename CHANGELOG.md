@@ -2,6 +2,10 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
+## Unreleased
+
+- Fixed: edited settings, appearance autosave, media properties and reset could report success even when config.json could not be saved. Failed saves now keep the previous active settings, show an error and allow retry; desktop autostart also restores its previous setting if persistence fails.
+
 ## 1.4.1 — 2026-10-06
 
 - Fixed: a video or audio alert longer than «حداکثر مدت» (90 seconds by default) stopped in the middle. It now plays to its end, or to the file's own «قطع بعد از»; «حداکثر مدت» remains the limit for alerts whose length is unknown (an image without its own duration, a KickBot GIF) and the safety net for a stuck file. A file without a stored length (some recordings) keeps playing while its position advances, and still ends if it stalls. The Browser Source tells the server how much longer the alert runs (new `/api/extend`), so the queue does not move on while the video is still playing; at most one hour.

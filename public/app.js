@@ -12,8 +12,28 @@ let CFG = null,
 const api = (p, opt) => fetch(p, opt).then(r => r.json());
 const post = (p, body) =>
   api(p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
-const patch = (p, body) =>
-  api(p, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+const patch = (p, body) => settingsRequest(p, body, 'PATCH');
+const SETTINGS_SAVE_ERROR = 'تنظیمات ذخیره نشد؛ دوباره تلاش کنید';
+async function settingsRequest(p, body, method = 'POST') {
+  try {
+    const response = await fetch(p, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {})
+    });
+    const result = await response.json();
+    if (!response.ok || result?.ok !== true)
+      return { ok: false, error: result?.error || SETTINGS_SAVE_ERROR, code: result?.code };
+    return result;
+  } catch {
+    return { ok: false, error: SETTINGS_SAVE_ERROR };
+  }
+}
+async function saveSettings(body) {
+  const r = await settingsRequest('/api/config', body);
+  if (!r.ok) toast(r.error, 'err');
+  return r.ok;
+}
 let toastT;
 function toast(m, kind) {
   const t = $('#toast');
@@ -184,15 +204,18 @@ function renderKickStatus() {
   hint.textContent = showHint ? st.hint : '';
 }
 $('#btnSaveKick').onclick = async () => {
-  await post('/api/config', {
-    kick: {
-      enabled: $('#kEnabled').checked,
-      channel: $('#kChannel').value.trim(),
-      giftValueToman: Number($('#kGift').value) || 0,
-      subValueToman: Number($('#kSub').value) || 0,
-      showNewSubs: $('#kShowSubs').checked
-    }
-  });
+  if (
+    !(await saveSettings({
+      kick: {
+        enabled: $('#kEnabled').checked,
+        channel: $('#kChannel').value.trim(),
+        giftValueToman: Number($('#kGift').value) || 0,
+        subValueToman: Number($('#kSub').value) || 0,
+        showNewSubs: $('#kShowSubs').checked
+      }
+    }))
+  )
+    return;
   toast('ذخیره شد', 'ok');
   setTimeout(load, 1200);
 };
@@ -313,7 +336,8 @@ $('#btnDisconnect').onclick = async () => {
 };
 $('#btnResetSettings').onclick = async () => {
   if (!confirm('ظاهر، نرخ، حالت کار و تنظیمات ساب به پیش‌فرض برگردند؟ فایل‌ها و اتصال کیک‌بات می‌مانند.')) return;
-  await post('/api/reset-settings');
+  const r = await settingsRequest('/api/reset-settings');
+  if (!r.ok) return toast(r.error, 'err');
   toast('تنظیمات بازگردانی شد', 'ok');
   load();
 };
@@ -341,17 +365,30 @@ $$('[data-doc]').forEach(
 );
 $('#autostart').onchange = async e => {
   if (!DESK) return;
-  const r = await window.sahne.app.autostart(e.target.checked);
-  e.target.checked = !!r;
-  await post('/api/config', { app: { autostart: !!r } });
-  toast(r ? 'اجرای خودکار فعال شد' : 'اجرای خودکار غیرفعال شد', 'ok');
+  const requested = e.target.checked;
+  e.target.disabled = true;
+  try {
+    const r = await window.sahne.app.autostart(requested);
+    e.target.checked = !!r;
+    if (INFO) INFO.autostart = !!r;
+    toast(r ? 'اجرای خودکار فعال شد' : 'اجرای خودکار غیرفعال شد', 'ok');
+  } catch {
+    e.target.checked = !requested;
+    try {
+      e.target.checked = !!(await window.sahne.app.autostart());
+    } catch {}
+    if (INFO) INFO.autostart = e.target.checked;
+    toast(SETTINGS_SAVE_ERROR, 'err');
+  } finally {
+    e.target.disabled = false;
+  }
 };
 $('#updCheck').onchange = async e => {
-  await post('/api/config', { app: { updateCheck: e.target.checked } });
+  if (!(await saveSettings({ app: { updateCheck: e.target.checked } }))) return;
   toast(e.target.checked ? 'بررسی خودکار آپدیت روشن شد' : 'بررسی خودکار آپدیت خاموش شد', 'ok');
 };
 $('#recHistory').onchange = async e => {
-  await post('/api/config', { app: { recordHistory: e.target.checked } });
+  if (!(await saveSettings({ app: { recordHistory: e.target.checked } }))) return;
   toast(
     e.target.checked ? 'ثبت تاریخچه‌ی دونیت‌ها روشن شد' : 'ثبت تاریخچه‌ی دونیت‌ها خاموش شد (فایل‌های قبلی پاک نشدند)',
     'ok'
@@ -463,7 +500,7 @@ $('#hCopyUrl').onclick = () => {
   toast('لینک Browser Source کپی شد', 'ok');
 };
 $('#btnSaveSettings').onclick = async () => {
-  await post('/api/config', { mode: $('#mode').value, showAlertWithoutMedia: $('#showNoMedia').checked });
+  if (!(await saveSettings({ mode: $('#mode').value, showAlertWithoutMedia: $('#showNoMedia').checked }))) return;
   toast('ذخیره شد', 'ok');
   load();
 };
@@ -818,9 +855,11 @@ function setA(k, v) {
   }
   if (lbl[k]) $('#' + lbl[k]).textContent = v;
 }
-function saveLook() {
+function saveLook(onSaved) {
   clearTimeout(saveT);
-  saveT = setTimeout(() => post('/api/config', { appearance: CFG.appearance }), 250);
+  saveT = setTimeout(async () => {
+    if ((await saveSettings({ appearance: CFG.appearance })) && onSaved) onSaved();
+  }, 250);
 }
 $('#btnPreview').onclick = () =>
   post('/api/preview', { name: $('#pvName').value, amount: $('#pvAmount').value, message: $('#pvMsg').value });
@@ -985,8 +1024,7 @@ $$('[data-preset]').forEach(
     (b.onclick = () => {
       const p = PRESETS[b.dataset.preset];
       for (const k in p) setA(k, p[k]);
-      saveLook();
-      toast('پریست اعمال شد', 'ok');
+      saveLook(() => toast('پریست اعمال شد', 'ok'));
     })
 );
 function fitPreview() {
@@ -1090,14 +1128,17 @@ function renderRate() {
   $('#rateProxy').value = r.proxy || '';
 }
 $('#btnSaveRate').onclick = async () => {
-  await post('/api/config', {
-    rate: {
-      auto: $('#rateAuto').checked,
-      manual: $('#rateManual').value,
-      intervalMin: $('#rateInt').value,
-      proxy: $('#rateProxy').value
-    }
-  });
+  if (
+    !(await saveSettings({
+      rate: {
+        auto: $('#rateAuto').checked,
+        manual: $('#rateManual').value,
+        intervalMin: $('#rateInt').value,
+        proxy: $('#rateProxy').value
+      }
+    }))
+  )
+    return;
   toast('ذخیره شد', 'ok');
   load();
 };
