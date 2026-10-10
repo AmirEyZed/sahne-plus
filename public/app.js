@@ -388,7 +388,7 @@ $('#updCheck').onchange = async e => {
   toast(e.target.checked ? 'بررسی خودکار آپدیت روشن شد' : 'بررسی خودکار آپدیت خاموش شد', 'ok');
 };
 $('#recHistory').onchange = async e => {
-  await post('/api/config', { app: { recordHistory: e.target.checked } });
+  if (!(await saveSettings({ app: { recordHistory: e.target.checked } }))) return;
   toast(
     e.target.checked ? 'ثبت تاریخچه‌ی دونیت‌ها روشن شد' : 'ثبت تاریخچه‌ی دونیت‌ها خاموش شد (فایل‌های قبلی پاک نشدند)',
     'ok'

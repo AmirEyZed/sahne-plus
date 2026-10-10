@@ -270,7 +270,14 @@ function controller() {
 
 test('manual settings/reset saves show errors and keep drafts for disk, HTTP, network and JSON failures', async () => {
   for (const behavior of ['disk', 'http', 'network', 'json', 'success']) {
-    for (const selector of ['#btnSaveSettings', '#btnSaveKick', '#btnSaveRate', '#btnResetSettings', '#updCheck']) {
+    for (const selector of [
+      '#btnSaveSettings',
+      '#btnSaveKick',
+      '#btnSaveRate',
+      '#btnResetSettings',
+      '#updCheck',
+      '#recHistory'
+    ]) {
       const ui = controller();
       ui.setBehavior(behavior);
       ui.node('#mode').value = 'companion';
