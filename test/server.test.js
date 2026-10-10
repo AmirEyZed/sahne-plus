@@ -555,7 +555,7 @@ test('a captured tip waiting for a Browser Source survives a restart and plays o
     for (const end = Date.now() + 3000; Date.now() < end; await sleep(10)) if (await cond()) return;
     assert.fail('timed out waiting for: ' + what);
   };
-  const request = (method, p) =>
+  const request = (method, p, body) =>
     new Promise((resolve, reject) =>
       http
         .request(
@@ -567,7 +567,7 @@ test('a captured tip waiting for a Browser Source survives a restart and plays o
           }
         )
         .on('error', reject)
-        .end()
+        .end(body && JSON.stringify(body))
     );
   const overlayCount = async () => (await request('GET', '/api/config')).state.overlays;
   const openOverlay = () => {
@@ -655,7 +655,13 @@ test('a captured tip waiting for a Browser Source survives a restart and plays o
     'tip_play is published once'
   );
   assert.equal(srv.testHooks.isPlayed('pi_wait'), true);
-  assert.equal(saved(), null, 'the file is removed once the tip has played');
+  assert.deepEqual(
+    saved().map(x => [x.stripe_pi_id, x.active]),
+    [['pi_wait', true]],
+    'the tip on screen stays in the file until it ends'
+  );
+  await request('POST', '/api/done', { id: 'pi_wait' });
+  assert.equal(saved(), null, 'the file is removed once the tip has finished');
 
   // an entry that was already played, a test tip, malformed entries and a corrupt file are not restored
   await srv.stop();
@@ -684,7 +690,8 @@ test('a captured tip waiting for a Browser Source survives a restart and plays o
     2,
     'the replay was captured once, not again after the restart'
   );
-  assert.equal(saved(), null, 'the file is removed once the replay has played');
+  await request('POST', '/api/done', { id: 'pi_wait' });
+  assert.equal(saved(), null, 'the file is removed once the replay has finished');
 
   await srv.stop();
   fs.writeFileSync(CAPTURED, '{not json');
