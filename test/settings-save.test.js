@@ -196,7 +196,13 @@ function controller() {
     return nodes.get(selector);
   };
   const context = vm.createContext({
-    document: { querySelector: node, querySelectorAll: () => [], body: { classList: { add() {} } } },
+    document: {
+      querySelector: node,
+      querySelectorAll: () => [],
+      body: { classList: { add() {} } },
+      addEventListener() {}, // 1.5.0 pointer-tilt listeners
+      removeEventListener() {}
+    },
     window: {
       sahne: {
         desktop: true,
@@ -207,7 +213,8 @@ function controller() {
           }
         }
       },
-      addEventListener() {}
+      addEventListener() {},
+      matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) // 1.5.0 reads prefers-reduced-motion at load
     },
     fetch: async (route, options) => {
       requests.push({ route, body: JSON.parse(options.body), method: options.method });
