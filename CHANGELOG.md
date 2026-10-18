@@ -2,9 +2,10 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
-## Unreleased
+## 1.5.1 — 2026-10-18
 
-- Fixed: edited settings, appearance autosave, media properties and reset could report success even when config.json could not be saved. Failed saves now keep the previous active settings, show an error and allow retry; desktop autostart also restores its previous setting if persistence fails.
+- Fixed: edited settings, appearance autosave, media properties and reset could report success even when config.json could not be saved. Failed saves now keep the previous active settings, show an error and allow retry; desktop autostart also restores its previous setting if persistence fails (thanks [SoroushRF](https://github.com/SoroushRF), [#19](https://github.com/AmirEyZed/sahne-plus/pull/19)).
+- Fixed: the «ثبت تاریخچه‌ی دونیت‌ها» switch also reported success when config.json could not be written; it now behaves like the other settings controls (same PR).
 
 ## 1.5.0 — 2026-10-18
 
