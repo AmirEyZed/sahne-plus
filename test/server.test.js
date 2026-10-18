@@ -19,12 +19,66 @@ const {
   parsePacProxy,
   routeOrder,
   describeKickFailure,
+  pusherUrl,
+  parseKickRealtime,
+  KICK_PUSHER_KEYS,
   parseSeActivity,
   seTokenOk,
   fxFromBaha24,
   fxFromBonbast,
   sanitizeFx
 } = require('../server/server');
+
+test('Kick Pusher key: built-in list, URL shape and the realtime endpoint answer (1.4.2)', () => {
+  assert.ok(KICK_PUSHER_KEYS.length >= 2 && KICK_PUSHER_KEYS.every(c => pusherUrl(c.key, c.cluster)));
+  assert.equal(
+    KICK_PUSHER_KEYS[0].key,
+    '34bf7a0ff419a2a775b9',
+    'the key kick.com hands out since 2026-10-13 comes first'
+  );
+  assert.equal(
+    pusherUrl('34bf7a0ff419a2a775b9', 'us2'),
+    'wss://ws-us2.pusher.com/app/34bf7a0ff419a2a775b9?protocol=7&client=js&version=8.4.0&flash=false'
+  );
+  for (const [k, c] of [
+    ['', 'us2'],
+    ['34bf7a0ff419a2a775b9', ''],
+    ['34BF7A0FF419A2A775B9', 'us2'],
+    ['34bf7a0ff419a2a775b', 'us2'],
+    ['34bf7a0ff419a2a775b9/x', 'us2'],
+    ['34bf7a0ff419a2a775b9', 'us2.evil.com/'],
+    [null, 'us2']
+  ])
+    assert.equal(pusherUrl(k, c), null, `rejects ${JSON.stringify([k, c])}`);
+  // what kick.com answered on 2026-10-18 to a client that accepts only Pusher
+  const pusherOnly =
+    '{"data":{"connections":[{"credentials":{"app_key":"34bf7a0ff419a2a775b9","cluster":"us2"},"provider":"pusher"}],"mode":"websocket"},"message":"success"}';
+  assert.deepEqual(parseKickRealtime(pusherOnly), { key: '34bf7a0ff419a2a775b9', cluster: 'us2' });
+  // ... and to a client that also accepts Centrifugo: no Pusher app -> null (the app keeps its known keys)
+  const centrifugo =
+    '{"data":{"connections":[{"credentials":{"url":"wss://realtime.us-west-2.platform.kick.com/connection/websocket"},"provider":"centrifugo"}],"mode":"websocket"},"message":"success"}';
+  assert.equal(parseKickRealtime(centrifugo), null);
+  assert.deepEqual(
+    parseKickRealtime(
+      '{"data":{"connections":[{"provider":"centrifugo","credentials":{"url":"wss://x"}},{"provider":"pusher","credentials":{"app_key":"ABCDEF0123456789ABCD","cluster":"US2"}}]}}'
+    ),
+    { key: 'abcdef0123456789abcd', cluster: 'us2' },
+    'takes the Pusher entry wherever it is and normalises case'
+  );
+  for (const bad of [
+    '',
+    'not json',
+    '<html>cloudflare</html>',
+    '{"data":{"connections":[{"provider":"pusher","credentials":{"app_key":"../../x","cluster":"us2"}}]}}',
+    '{"data":{"connections":[{"provider":"pusher","credentials":"34bf7a0ff419a2a775b9"}]}}',
+    '{"data":{"connections":[{"provider":"pusher"}]}}',
+    '{"data":{"connections":"x"}}',
+    '{"data":null}',
+    '[]',
+    'null'
+  ])
+    assert.equal(parseKickRealtime(bad), null, `rejects ${bad.slice(0, 40)}`);
+});
 
 test('system proxy parsing, route order and readable Kick errors (1.3.1)', () => {
   assert.equal(parsePacProxy('PROXY 127.0.0.1:10809; DIRECT'), 'http://127.0.0.1:10809');

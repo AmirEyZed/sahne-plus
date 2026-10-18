@@ -2,6 +2,11 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
+## 1.4.2 — 2026-10-18
+
+- Fixed: **Kick subscriptions and gifted subscriptions stopped arriving on 2026-10-13.** Kick retired the key of its public chat feed (Pusher app `32cbd69e4b950bf97679`); every version up to 1.4.1 kept reconnecting with it, Pusher answered «App key not in this cluster» (error 4001) every few seconds, and the Settings page showed «قطع شده، تلاش مجدد…» forever. 1.4.2 connects with Kick's current key (`34bf7a0ff419a2a775b9`), and when Pusher rejects a key again it asks kick.com which key its own page uses (`web.kick.com/api/v1/realtime/connection`, through the same proxy order as the channel lookup, at most every 5 minutes and right after «ذخیره») and keeps the answer in `config.json`. If that lookup fails too (kick.com filtered, VPN off), the Kick status chip now says so — «کلید چت کیک عوض شده…» with what to do — instead of «تلاش مجدد». The rejected key is logged once, not on every attempt.
+- Docs: PRIVACY.md and docs/DATA_FLOW.md list the new `web.kick.com` request (what it sends: a random identifier per request, nothing stored; what it receives: the public feed key). Kick's newer Centrifugo chat transport is deliberately not used yet: it runs on `*.kick.com` hosts, which are DNS-filtered in Iran, and the app's websocket client cannot use a proxy.
+
 ## 1.4.1 — 2026-10-06
 
 - Fixed: a video or audio alert longer than «حداکثر مدت» (90 seconds by default) stopped in the middle. It now plays to its end, or to the file's own «قطع بعد از»; «حداکثر مدت» remains the limit for alerts whose length is unknown (an image without its own duration, a KickBot GIF) and the safety net for a stuck file. A file without a stored length (some recordings) keeps playing while its position advances, and still ends if it stalls. The Browser Source tells the server how much longer the alert runs (new `/api/extend`), so the queue does not move on while the video is still playing; at most one hour.
