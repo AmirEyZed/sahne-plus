@@ -13,7 +13,15 @@ const { createAnalyticsStore } = require('./analytics-store');
 // ---- third-party endpoints (documented in DATA_FLOW.md) ----
 const KB_WS = 'wss://kickbot.live/ws'; // KickBot tipping event stream (same source the official widget uses)
 const KB_API = 'https://widgets.kickbot.com'; // KickBot widget API: queue sync, capture_tip, widget metadata
-const PUSHER_WS = 'wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=8.4.0&flash=false'; // Kick's public chat feed (Pusher, undocumented)
+// Kick's public chat feed is a Pusher app whose key Kick rotates (the key shipped since 2023 died on 2026-10-13).
+// The current key is asked from kick.com's realtime endpoint once Pusher rejects the key in use; the keys known at
+// build time are the fallback for when kick.com is unreachable (filtered, VPN off). Undocumented, see DATA_FLOW.md.
+const KICK_REALTIME_API = 'https://web.kick.com/api/v1/realtime/connection'; // which Pusher app kick.com currently uses
+const KICK_PUSHER_KEYS = [
+  { key: '34bf7a0ff419a2a775b9', cluster: 'us2' }, // since 2026-10-13
+  { key: '32cbd69e4b950bf97679', cluster: 'us2' } // until 2026-10-13
+];
+const KICK_REALTIME_RETRY = 5 * 60 * 1000; // minimum time between two realtime lookups
 const KICK_CHANNEL_API = 'https://kick.com/api/v2/channels/'; // undocumented Kick web endpoint used only to resolve slug -> chatroom id
 const BAHA24 = 'https://baha24.com/api/v1/price'; // USD->toman sell rate, public JSON API (primary)
 const BONBAST = 'https://www.bonbast.com/'; // USD->toman sell rate (scraped; fallback only)
@@ -92,6 +100,8 @@ const DEFAULT_CONFIG = {
     chatroomId: null,
     channelId: null,
     resolvedFor: null,
+    pusherKey: null, // Pusher app key / cluster last received from kick.com (null: the built-in list)
+    pusherCluster: null,
     giftValueToman: 0,
     subValueToman: 0,
     showNewSubs: true
@@ -418,6 +428,28 @@ function describeKickFailure(attempts) {
     error: 'اتصال به kick.com ناموفق بود',
     hint: 'اینترنت و VPN را بررسی کنید و دوباره «ذخیره» را بزنید؛ جزئیات در صفحه‌ی لاگ است.'
   };
+}
+// Pusher websocket URL for a Kick chat app key; null unless key and cluster look like Pusher's (20 hex chars, "us2").
+function pusherUrl(key, cluster) {
+  if (!/^[a-f0-9]{20}$/.test(String(key || '')) || !/^[a-z0-9-]{1,20}$/.test(String(cluster || ''))) return null;
+  return `wss://ws-${cluster}.pusher.com/app/${key}?protocol=7&client=js&version=8.4.0&flash=false`;
+}
+// kick.com's realtime answer -> { key, cluster } of its Pusher connection, or null (no Pusher offered, bad shape).
+function parseKickRealtime(text) {
+  let j;
+  try {
+    j = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  const list = j && j.data && Array.isArray(j.data.connections) ? j.data.connections : [];
+  for (const c of list) {
+    if (!c || c.provider !== 'pusher' || !c.credentials || typeof c.credentials !== 'object') continue;
+    const key = String(c.credentials.app_key || '').toLowerCase(),
+      cluster = String(c.credentials.cluster || '').toLowerCase();
+    if (pusherUrl(key, cluster)) return { key, cluster };
+  }
+  return null;
 }
 
 const finite = (v, min, max, dflt) => {
@@ -1591,8 +1623,98 @@ function createServer(opts) {
   // ---------- Kick subs / gifted subs (public chat feed; undocumented, see DATA_FLOW.md) ----------
   let kws = null,
     kickPing = null,
-    kickRetry = 5000;
+    kickRetry = 5000,
+    kickLookupAt = 0, // when kick.com was last asked for the Pusher key (throttle), 0 = ask at the next chance
+    kickLookup = null; // the lookup in flight
   const kickState = { connected: false, error: null, hint: null };
+  const kickRejected = new Set(); // Pusher app keys Pusher refused this session ("not in this cluster", ...)
+  const KICK_KEY_ERROR = {
+    error: 'کلید چت کیک عوض شده و برنامه نتوانست کلید جدید را از kick.com بگیرد',
+    hint: 'کیک کلید اتصال چتش را عوض کرده است. VPN را روشن کنید (یا پراکسی HTTP آن را در کادر «پراکسی» بنویسید)؛ برنامه هر ۵ دقیقه دوباره از kick.com می‌پرسد و بعد از «ذخیره» در تنظیمات هم فوراً. اگر ادامه داشت، نسخه‌ی جدید Sahne+ را نصب کنید.'
+  };
+  // The Pusher app to connect with: the key kick.com last gave us, then the built-in ones; keys Pusher rejected
+  // are skipped. Asks kick.com only when nothing else is left, at most once per KICK_REALTIME_RETRY.
+  async function pickKickPusher() {
+    const known = [];
+    if (config.kick.pusherKey) known.push({ key: config.kick.pusherKey, cluster: config.kick.pusherCluster });
+    known.push(...((opts.testHooks && opts.testHooks.kickPusherKeys) || KICK_PUSHER_KEYS));
+    const usable = known.find(c => pusherUrl(c.key, c.cluster) && !kickRejected.has(c.key));
+    if (usable) return usable;
+    if (kickLookup) return kickLookup;
+    if (Date.now() - kickLookupAt < KICK_REALTIME_RETRY) return null;
+    kickLookupAt = Date.now();
+    kickLookup = lookupKickPusher().finally(() => {
+      kickLookup = null;
+    });
+    return kickLookup;
+  }
+  async function lookupKickPusher() {
+    const body = JSON.stringify({
+      client: { id: crypto.randomUUID(), type: 'web' },
+      capabilities: { accepted_providers: [{ provider: 'pusher' }] }
+    });
+    const attempts = [];
+    for (const px of await routesFor(KICK_REALTIME_API, false)) {
+      try {
+        const r = await httpsRequest(
+          KICK_REALTIME_API,
+          {
+            method: 'POST',
+            headers: {
+              'User-Agent': UA,
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body)
+            },
+            body,
+            proxy: px
+          },
+          10000
+        );
+        if (r.status !== 200) {
+          const e = new Error('kick realtime api HTTP ' + r.status);
+          e.httpStatus = r.status;
+          throw e;
+        }
+        const creds = parseKickRealtime(r.text);
+        if (!creds) {
+          const e = new Error('kick realtime api: no pusher key in the response');
+          e.kind = 'parse';
+          throw e;
+        }
+        if (kickRejected.has(creds.key)) {
+          const e = new Error('kick realtime api: offered the rejected key ' + creds.key);
+          e.kind = 'rejected';
+          throw e;
+        }
+        if (creds.key !== config.kick.pusherKey || creds.cluster !== config.kick.pusherCluster) {
+          config.kick.pusherKey = creds.key;
+          config.kick.pusherCluster = creds.cluster;
+          saveConfig();
+        }
+        log('info', 'کلید جدید چت کیک از kick.com گرفته شد', {
+          key: creds.key,
+          cluster: creds.cluster,
+          via: routeLabel(px)
+        });
+        return creds;
+      } catch (e) {
+        attempts.push({ route: px, err: e });
+        if (e.kind === 'rejected') break;
+      }
+    }
+    log(
+      'warn',
+      'گرفتن کلید چت کیک از kick.com ناموفق بود',
+      attempts
+        .map(
+          a =>
+            routeLabel(a.route) + ': ' + (a.err.httpStatus ? 'HTTP ' + a.err.httpStatus : a.err.code || a.err.message)
+        )
+        .join(' | ')
+    );
+    return null;
+  }
   const recentKeys = new Map();
   function seenRecently(key, ms = 2500) {
     const now = Date.now();
@@ -1821,12 +1943,32 @@ function createServer(opts) {
     }
   }
 
-  function kickConnect() {
+  let kickConnecting = false;
+  async function kickConnect() {
     if (!NODE_OK || !config.kick.enabled || !config.kick.chatroomId) return;
-    if (kws && (kws.readyState === 0 || kws.readyState === 1)) return;
+    if (kickConnecting || (kws && (kws.readyState === 0 || kws.readyState === 1))) return;
     if (stopped) return;
+    kickConnecting = true;
+    let creds = null;
     try {
-      kws = new WebSocket(PUSHER_WS);
+      creds = await pickKickPusher();
+    } catch {
+      creds = null;
+    } finally {
+      kickConnecting = false;
+    }
+    if (stopped || !config.kick.enabled || !config.kick.chatroomId) return;
+    if (kws && (kws.readyState === 0 || kws.readyState === 1)) return;
+    if (!creds) {
+      if (kickState.error !== KICK_KEY_ERROR.error) {
+        kickState.error = KICK_KEY_ERROR.error;
+        kickState.hint = KICK_KEY_ERROR.hint;
+        sendState();
+      }
+      return;
+    }
+    try {
+      kws = new WebSocket(pusherUrl(creds.key, creds.cluster));
     } catch {
       return;
     }
@@ -1860,7 +2002,20 @@ function createServer(opts) {
           sock.send(JSON.stringify({ event: 'pusher:pong', data: {} }));
         } catch {}
       } else if (m.event === 'pusher:error') {
-        log('warn', 'pusher error', m.data);
+        const code = Number(m.data && m.data.code) || 0;
+        // 4000-4099: Pusher will refuse the same parameters again (4001 app key not in this cluster, 4003 app
+        // disabled, 4004 over quota, 4009 unauthorized) -> a rotated or dead key; drop it and ask kick.com
+        if (code >= 4000 && code < 4100) {
+          if (!kickRejected.has(creds.key)) {
+            kickRejected.add(creds.key);
+            kickLookupAt = 0;
+            log('warn', 'Pusher کلید چت کیک را قبول نکرد؛ کلید جدید از kick.com پرسیده می‌شود', {
+              key: creds.key,
+              code,
+              message: m.data && m.data.message
+            });
+          }
+        } else log('warn', 'pusher error', m.data);
       } else if (/GiftedSubscriptionsEvent$/.test(m.event || '')) {
         let d = {};
         try {
@@ -2452,6 +2607,7 @@ function createServer(opts) {
             } catch {}
             kws = null;
           }
+          kickLookupAt = 0; // «ذخیره» retries the Pusher key lookup at once (the user may have turned the VPN on)
           if (config.kick.enabled)
             resolveKickChannel().then(ok => {
               if (ok) kickConnect();
@@ -3047,6 +3203,9 @@ module.exports = {
   parsePacProxy,
   routeOrder,
   describeKickFailure,
+  pusherUrl,
+  parseKickRealtime,
+  KICK_PUSHER_KEYS,
   parseSeActivity,
   seTokenOk,
   fxFromBaha24,

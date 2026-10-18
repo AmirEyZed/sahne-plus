@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; frame-src 'self'">
 <title>Sahne Plus</title>
 <link rel="stylesheet" href="/app.css">
@@ -68,6 +69,16 @@
       <button data-page="analytics"><svg><use href="#i-chart"/></svg>آمار</button>
       <button data-page="about"><svg><use href="#i-info"/></svg>درباره</button>
     </nav>
+    <svg class="deco-mark" viewBox="0 0 120 160" aria-hidden="true">
+      <defs>
+        <linearGradient id="dmTop" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e6f9d6"/><stop offset=".5" stop-color="#8fd3a6"/><stop offset="1" stop-color="#2f7d4f"/></linearGradient>
+        <linearGradient id="dmBot" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdf0d6"/><stop offset=".55" stop-color="#6cbf8c"/><stop offset="1" stop-color="#1c4a31"/></linearGradient>
+        <linearGradient id="dmGlint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset=".4" stop-color="#fff" stop-opacity="0"/></linearGradient>
+      </defs>
+      <path fill="url(#dmTop)" d="M87 4C94 2 100 7 100 14V63C100 66 98 67.5 95.5 66.2L59 47.5C56 46 54 47.8 54 51V91C54 95.5 50 98 46.2 95.8L18 79C13 76 10 70 10 63V45C10 37 15 30 22 27L82 5C84 4.3 86 4 87 4Z"/>
+      <path fill="url(#dmBot)" d="M33 156C26 158 20 153 20 146V97C20 94 22 92.5 24.5 93.8L61 112.5C64 114 66 112.2 66 109V69C66 64.5 70 62 73.8 64.2L102 81C107 84 110 90 110 97V115C110 123 105 130 98 133L38 155C36 155.7 34 156 33 156Z"/>
+      <path fill="url(#dmGlint)" d="M87 4C94 2 100 7 100 14V63C100 66 98 67.5 95.5 66.2L59 47.5C56 46 54 47.8 54 51V91C54 95.5 50 98 46.2 95.8L18 79C13 76 10 70 10 63V45C10 37 15 30 22 27L82 5C84 4.3 86 4 87 4Z"/>
+    </svg>
     <div class="rail-status">
       <div class="status-pill" id="stKb"><span class="dot"></span>کیک‌بات (دونیت)</div>
       <div class="status-pill" id="stKick"><span class="dot"></span>چت کیک (ساب)</div>
@@ -118,7 +129,7 @@
             <div class="field"><label>مبلغ (دلار)</label><input type="number" id="tAmount" value="10" class="ltr"></div>
             <div class="field full"><label>پیام</label><input type="text" id="tMsg" value="تست الرت جدید 🔥"></div>
           </div>
-          <div class="row" style="margin-top:12px">
+          <div class="row quick-actions" style="margin-top:12px">
             <button class="btn primary" id="btnTest"><svg><use href="#i-send"/></svg>دونیت تستی</button>
             <button class="btn" id="btnTestSub"><svg><use href="#i-star"/></svg>تست ساب</button>
             <button class="btn" id="btnTestGift"><svg><use href="#i-gift"/></svg>تست ساب‌گیفت (۳)</button>

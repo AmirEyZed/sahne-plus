@@ -101,19 +101,94 @@ function moveCapsule(btn) {
   capsule.style.transform = `translateY(${btn.offsetTop}px)`;
   capsule.style.height = btn.offsetHeight + 'px';
 }
+const calmMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
+const calm = () => calmMQ.matches;
+let turnAnim = null;
+// A page change turns the main panel in 3D, the new page appears mid-turn and its cards rise in one after another.
 function goPage(name) {
-  $$('.nav button').forEach(b => b.classList.toggle('active', b.dataset.page === name));
-  $$('.page').forEach(p => p.classList.toggle('active', p.dataset.page === name));
+  const from = $('.page.active'),
+    order = $$('.nav button').map(b => b.dataset.page);
+  $$('.nav button').forEach(b => {
+    const on = b.dataset.page === name;
+    b.classList.toggle('active', on);
+    if (on) b.setAttribute('aria-current', 'page');
+    else b.removeAttribute('aria-current');
+  });
   moveCapsule($(`.nav button[data-page="${name}"]`));
-  if (name === 'look') setTimeout(fitPreview, 30);
-  if (name === 'home') loadSim();
-  if (name === 'analytics' && window.ANALYTICS) window.ANALYTICS.open();
-  if (name === 'about' && !$('#docView').textContent) showDoc('PRIVACY.md');
   if (name !== 'files') closeInspector();
   try {
     localStorage.setItem('sp.page', name);
   } catch {}
+  const show = () => {
+    $$('.page').forEach(p => p.classList.toggle('active', p.dataset.page === name));
+    const page = $(`.page[data-page="${name}"]`);
+    if (page) enterPage(page);
+    if (name === 'look') setTimeout(fitPreview, 30);
+    if (name === 'home') loadSim();
+    if (name === 'analytics' && window.ANALYTICS) window.ANALYTICS.open();
+    if (name === 'about' && !$('#docView').textContent) showDoc('PRIVACY.md');
+  };
+  const content = $('#content');
+  if (turnAnim) turnAnim.cancel();
+  if (!from || from.dataset.page === name || calm() || !content.animate) return show();
+  const dir = (order.indexOf(name) > order.indexOf(from.dataset.page) ? 1 : -1) * (document.dir === 'rtl' ? -1 : 1);
+  turnAnim = content.animate(
+    [
+      { transform: 'none', opacity: 1 },
+      { transform: `rotateY(${7 * dir}deg) scale(.985)`, opacity: 0.35 }
+    ],
+    { duration: 150, easing: 'cubic-bezier(.4, 0, 1, 1)' }
+  );
+  turnAnim.onfinish = () => {
+    show();
+    content.scrollTop = 0;
+    turnAnim = content.animate(
+      [
+        { transform: `rotateY(${-7 * dir}deg) scale(.985)`, opacity: 0.35 },
+        { transform: 'none', opacity: 1 }
+      ],
+      { duration: 460, easing: 'cubic-bezier(.16, 1, .3, 1)' }
+    );
+  };
 }
+function enterPage(page) {
+  page
+    .querySelectorAll('.bento, .an-grid, .files, .lookgrid')
+    .forEach(g => [...g.children].forEach((c, i) => c.style.setProperty('--i', Math.min(i, 10))));
+  page.classList.remove('enter');
+  void page.offsetWidth; // restart the rise animation
+  page.classList.add('enter');
+  clearTimeout(page.enterT);
+  page.enterT = setTimeout(() => page.classList.remove('enter'), 1500);
+}
+// Pointer tilt with a soft glint on file cards, stats and Home cards (app.css reads --rx/--ry/--mx/--my).
+const TILT = '.fcard, .an-kpi, .page[data-page="home"] .card';
+let tilted = null;
+function untilt() {
+  if (!tilted) return;
+  tilted.style.removeProperty('--rx');
+  tilted.style.removeProperty('--ry');
+  tilted = null;
+}
+document.addEventListener(
+  'pointermove',
+  e => {
+    const el = calm() || !e.target.closest ? null : e.target.closest(TILT);
+    if (el !== tilted) untilt();
+    if (!el) return;
+    tilted = el;
+    const r = el.getBoundingClientRect(),
+      x = (e.clientX - r.left) / r.width,
+      y = (e.clientY - r.top) / r.height,
+      max = el.classList.contains('fcard') ? 7 : 2.5;
+    el.style.setProperty('--ry', ((x - 0.5) * max).toFixed(2) + 'deg');
+    el.style.setProperty('--rx', ((0.5 - y) * max).toFixed(2) + 'deg');
+    el.style.setProperty('--mx', (x * 100).toFixed(1) + '%');
+    el.style.setProperty('--my', (y * 100).toFixed(1) + '%');
+  },
+  { passive: true }
+);
+document.addEventListener('pointerleave', untilt);
 $$('.nav button').forEach(b => (b.onclick = () => goPage(b.dataset.page)));
 window.addEventListener('resize', () => moveCapsule($('.nav button.active')));
 
