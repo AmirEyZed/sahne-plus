@@ -2,6 +2,13 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
+## 1.5.0 — 2026-10-18
+
+- New look: **«Mint stage»** — the controller window moved from the dark theme to a light mint glass look: frosted panels, deep-green ink, pill buttons, the SAHNE mark as a quiet tiled pattern and a glossy floating mark in the sidebar. Pages turn in 3D in the direction of the nav order (RTL aware), cards rise in with a stagger, file / KPI / home cards tilt under the pointer with a glint, the nav capsule springs, the connection dots pulse, analytics lines draw and donor bars grow. Every animation is switched off under Windows' «reduce motion» setting. The window background matches the theme while the page loads.
+- Layout: card rows fill their row at every window width from 1000 to 1900 px (no empty holes), and the quick-test buttons stack by card width instead of overflowing.
+- Accessibility: text contrast was measured from rendered pixels on every page; placeholders, the nav badge, the success/warning/danger text colours, muted text and the file-card captions were below WCAG AA and now every sample passes 4.5:1 (3:1 for large text). The active nav button carries `aria-current="page"`, every control keeps a visible focus ring, native widgets stay light under Windows dark mode, select fields pad the text on the start side in RTL, and the documents viewer wraps long URLs. The live-status pulse animates on the compositor only.
+- Docs: README screenshots retaken with the new look.
+
 ## 1.4.2 — 2026-10-18
 
 - Fixed: **Kick subscriptions and gifted subscriptions stopped arriving on 2026-10-13.** Kick retired the key of its public chat feed (Pusher app `32cbd69e4b950bf97679`); every version up to 1.4.1 kept reconnecting with it, Pusher answered «App key not in this cluster» (error 4001) every few seconds, and the Settings page showed «قطع شده، تلاش مجدد…» forever. 1.4.2 connects with Kick's current key (`34bf7a0ff419a2a775b9`), and when Pusher rejects a key again it asks kick.com which key its own page uses (`web.kick.com/api/v1/realtime/connection`, through the same proxy order as the channel lookup, at most every 5 minutes and right after «ذخیره») and keeps the answer in `config.json`. If that lookup fails too (kick.com filtered, VPN off), the Kick status chip now says so — «کلید چت کیک عوض شده…» with what to do — instead of «تلاش مجدد». The rejected key is logged once, not on every attempt.
