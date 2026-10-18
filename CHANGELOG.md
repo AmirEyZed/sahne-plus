@@ -2,6 +2,10 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
+## Unreleased
+
+- Fixed: edited settings, appearance autosave, media properties and reset could report success even when config.json could not be saved. Failed saves now keep the previous active settings, show an error and allow retry; desktop autostart also restores its previous setting if persistence fails.
+
 ## 1.5.0 — 2026-10-18
 
 - New look: **«Mint stage»** — the controller window moved from the dark theme to a light mint glass look: frosted panels, deep-green ink, pill buttons, the SAHNE mark as a quiet tiled pattern and a glossy floating mark in the sidebar. Pages turn in 3D in the direction of the nav order (RTL aware), cards rise in with a stagger, file / KPI / home cards tilt under the pointer with a glint, the nav capsule springs, the connection dots pulse, analytics lines draw and donor bars grow. Every animation is switched off under Windows' «reduce motion» setting. The window background matches the theme while the page loads.
