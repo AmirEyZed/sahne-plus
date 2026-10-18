@@ -129,7 +129,7 @@ function createWindow() {
     minWidth: 980,
     minHeight: 640,
     frame: false,
-    backgroundColor: '#141416',
+    backgroundColor: '#d8f1d6',
     show: false,
     title: APP_NAME,
     icon: fs.existsSync(ICON_PNG) ? ICON_PNG : undefined,

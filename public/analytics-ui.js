@@ -419,7 +419,7 @@
       for (let hr = 0; hr < 24; hr++) {
         const c = (cells[rw] && cells[rw][hr]) || 0;
         const a = c && h.max ? 0.16 + 0.84 * (c / h.max) : 0;
-        html += `<div class="cell" style="${c ? `background:rgba(210,180,163,${a.toFixed(2)})` : ''}" data-tip="${tipAttr(
+        html += `<div class="cell" style="${c ? `background:rgba(47,125,79,${a.toFixed(2)})` : ''}" data-tip="${tipAttr(
           `<b>${esc(h.days ? h.days[rw] : '')} — ${esc(faNum(hr))}:۰۰</b>${tipRows([['تعداد', faNum(c)]])}`
         )}"></div>`;
       }
