@@ -82,13 +82,14 @@ test('installer download: a slow download that keeps moving is not cut off, howe
   const stream = new ReadableStream({
     async pull(c) {
       if (i++ === 8) return c.close();
-      await new Promise(res => setTimeout(res, 60)); // each chunk well within the limit, the total well beyond it
+      await new Promise(res => setTimeout(res, 100)); // each chunk well within the limit, the total well beyond it
       c.enqueue(Buffer.from('chunk ' + i));
     }
   });
   const t0 = Date.now();
-  const sha = await core.saveStream(stream, dest, { stallMs: 150 });
-  assert.ok(Date.now() - t0 > 300, 'the whole download took longer than the stall limit');
+  // 600 ms, not 150: closing the file on a slow CI disk (GitHub's Windows runner) took longer than 150 ms once
+  const sha = await core.saveStream(stream, dest, { stallMs: 600 });
+  assert.ok(Date.now() - t0 > 600, 'the whole download took longer than the stall limit');
   assert.equal(sha, sha256(fs.readFileSync(dest)));
   assert.equal(fs.readFileSync(dest, 'latin1'), 'chunk 1chunk 2chunk 3chunk 4chunk 5chunk 6chunk 7chunk 8');
   fs.rmSync(dir, { recursive: true, force: true });
