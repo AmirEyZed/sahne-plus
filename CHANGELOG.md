@@ -2,6 +2,14 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
+## 1.6.1 — 2026-10-20
+
+- Fixed: **a new version was easy to miss.** The update notice sat at the top of the page and scrolled away with it, and «بررسی آپدیت» only answered with a two-second toast, so in a window that was not maximised the update could not be found. Now: the notice stays pinned at the top while the page scrolls; a green **«نسخه‌ی جدید آمده»** button sits in the sidebar on every page (it stays after «بعداً» on the top bar, and shows the download progress); the About card shows **«نصب نسخه‌ی …»** right next to «بررسی آپدیت»; the check button says «در حال بررسی…» while it works; toasts stay up long enough to read.
+- Fixed: **fonts.** Numbers and Latin text used Inter, which has no Persian letters, so a Persian digit or word inside a number (Analytics «۲٫۸۸ میلیون», counts) fell back to a different Windows font. The whole app now uses Vazirmatn, Latin letters and digits included; the stream alert keeps the font you pick for it.
+- Fixed: Analytics showed «میلیون ۲٫۸۸» in the wrong order; each value now reads in its own direction and sits under its label.
+- Fixed: counters (queue, Browser Sources, the Files badge, the rate) used English digits next to Persian text; they use Persian digits now. Versions, links and dollar amounts stay in Latin digits.
+- Fixed: in the default 1240 × 800 window the sidebar did not fit and «خروج» was cut off; at the 640 px minimum the rows tighten and the status pills go two by two.
+
 ## 1.6.0 — 2026-10-20
 
 - New: **Donofa bridge** (Settings → «دونوفا: هدف و تایمر»). Donofa's own goal and timer widgets stay on stream with the look, title, target and timer rate set on donofa.com; Sahne Plus adds what Donofa never sees — Kick subs, gift subs, KICKs, KickBot and StreamElements donations — to that same goal and timer through Donofa's documented API v2. Time is converted with the Donofa timer's own rate («هر N تومان = S ثانیه»); a sub is worth its toman value from the Kick card (or $4.99 at the current rate), a KICK $0.0105. Donofa's own donations are left to Donofa. Kick subs and gift subs are always counted by Sahne Plus (it sees every one in Kick chat and uses the streamer's own sub value), so Donofa's own «ساب کیک» switch on the goal and the timer should be off; while it is on, the card says so, because Donofa could then count the same sub a second time. The Settings card only shows the goal, the timer, two switches and the last pushes: no appearance settings.

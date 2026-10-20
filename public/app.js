@@ -40,7 +40,7 @@ function toast(m, kind) {
   t.textContent = m;
   t.className = 'toast show ' + (kind || '');
   clearTimeout(toastT);
-  toastT = setTimeout(() => t.classList.remove('show'), 2000);
+  toastT = setTimeout(() => t.classList.remove('show'), Math.min(6000, Math.max(2200, String(m).length * 70))); // long enough to read
 }
 function esc(s) {
   return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -624,7 +624,7 @@ function renderUpdate(s) {
     txt = 'نسخه‌ی جدید صحنه پلاس (' + v + ') آماده است.' + (UPD.error ? ' ' + UPD.error : '');
     show = !updLater;
   } else if (UPD.status === 'downloading') {
-    txt = 'در حال دانلود نسخه‌ی ' + v + '… ' + (UPD.progress || 0) + '٪';
+    txt = 'در حال دانلود نسخه‌ی ' + v + '… ' + faNum(UPD.progress || 0) + '٪';
     show = busy = true;
   } else if (UPD.status === 'ready') {
     txt = 'نسخه‌ی ' + v + ' دانلود و با چک‌سام رسمی بررسی شد (حالت تست؛ نصب نمی‌شود).';
@@ -638,6 +638,34 @@ function renderUpdate(s) {
   $('#updGo').disabled = busy;
   $('#updGo').textContent = UPD.canInstall ? 'آپدیت' : 'دانلود';
   $('#updLater').style.display = busy ? 'none' : '';
+  // the sidebar button: on every page and scroll position, and still there after «بعداً» on the top bar
+  const st = UPD.status,
+    rail = $('#railUpd'),
+    railOn = ['available', 'downloading', 'ready', 'installing'].includes(st);
+  rail.hidden = !railOn;
+  rail.classList.toggle('busy', st === 'downloading' || st === 'installing');
+  rail.disabled = st !== 'available';
+  $('#railUpdTitle').textContent =
+    st === 'downloading'
+      ? 'در حال دانلود… ' + faNum(UPD.progress || 0) + '٪'
+      : st === 'installing'
+        ? 'در حال نصب…'
+        : st === 'ready'
+          ? 'دانلود شد'
+          : 'نسخه‌ی جدید آمده';
+  $('#railUpdSub').textContent =
+    st === 'available'
+      ? 'نسخه‌ی ' + v + ' · ' + (UPD.canInstall ? 'کلیک برای نصب' : 'دانلود از GitHub')
+      : 'نسخه‌ی ' + v;
+  $('#railUpdProg').style.width = (st === 'installing' ? 100 : UPD.progress || 0) + '%';
+  rail.title = st === 'available' ? 'نصب نسخه‌ی ' + v : '';
+  // About card: the action sits next to «بررسی آپدیت», where the eye already is
+  $('#abInstall').hidden = st !== 'available';
+  $('#abInstallText').textContent = UPD.canInstall ? 'نصب نسخه‌ی ' + v : 'دانلود نسخه‌ی ' + v + ' از GitHub';
+  const checking = st === 'checking';
+  $('#abCheckUpd').disabled = checking || busy;
+  $('#abCheckUpd').classList.toggle('checking', checking);
+  $('#abCheckText').textContent = checking ? 'در حال بررسی…' : 'بررسی آپدیت';
   const labels = {
     idle: 'هنوز بررسی نشده',
     checking: 'در حال بررسی…',
@@ -656,8 +684,8 @@ if (DESK && window.sahne.update) {
     .get()
     .then(renderUpdate)
     .catch(() => {});
-  $('#updGo').onclick = async () => {
-    if (!UPD) return;
+  const startUpdate = async () => {
+    if (!UPD || UPD.status !== 'available') return;
     if (!UPD.canInstall) {
       if (UPD.page) window.sahne.app.openExternal(UPD.page);
       return;
@@ -672,6 +700,9 @@ if (DESK && window.sahne.update) {
       return;
     renderUpdate(await window.sahne.update.install());
   };
+  $('#updGo').onclick = startUpdate;
+  $('#railUpd').onclick = startUpdate;
+  $('#abInstall').onclick = startUpdate;
   $('#updNotes').onclick = () => UPD && UPD.page && window.sahne.app.openExternal(UPD.page);
   $('#updLater').onclick = () => {
     updLater = true;
@@ -679,12 +710,18 @@ if (DESK && window.sahne.update) {
   };
   $('#abCheckUpd').onclick = async () => {
     updLater = false;
+    renderUpdate({ ...(UPD || {}), status: 'checking' }); // immediate feedback; the real status follows
     const s = await window.sahne.update.check();
     renderUpdate(s);
     if (!s) return;
     if (s.status === 'uptodate') toast('صحنه پلاس به‌روز است', 'ok');
-    else if (s.status === 'available') toast('نسخه‌ی ' + s.latest + ' آمده است', 'ok');
-    else toast(s.error || 'بررسی آپدیت ناموفق بود', 'err');
+    else if (s.status === 'available') {
+      toast('نسخه‌ی ' + s.latest + ' آمده است؛ دکمه‌ی نصب کنار «بررسی آپدیت» و در نوار کناری است', 'ok');
+      const bar = $('#updBar'); // draw the eye to it once
+      bar.classList.remove('flash');
+      void bar.offsetWidth;
+      bar.classList.add('flash');
+    } else toast(s.error || 'بررسی آپدیت ناموفق بود', 'err');
   };
 } else {
   $('#abCheckUpd').disabled = true;
@@ -749,7 +786,7 @@ function visibleFiles() {
   return list.sort(by[fSort] || by.amount);
 }
 function renderFiles() {
-  $('#navFiles').textContent = (CFG.files || []).length;
+  $('#navFiles').textContent = faNum((CFG.files || []).length);
   const box = $('#files');
   box.innerHTML = '';
   const list = visibleFiles();
@@ -1267,17 +1304,17 @@ function renderState() {
   if (CFG) renderSe();
   if (CFG) renderDonofa();
   $('#stOv').className = 'status-pill' + (s.overlays > 0 ? ' on' : ' warn');
-  $('#stOvN').textContent = s.overlays;
-  $('#hOv').textContent = s.overlays;
+  $('#stOvN').textContent = faNum(s.overlays);
+  $('#hOv').textContent = faNum(s.overlays);
   $('#hMode').textContent = s.mode === 'standalone' ? 'جایگزین ویجت' : 'کنار ویجت';
   $('#sPlaying').innerHTML = s.playing
     ? `<span class="chip on">${esc(s.playing.name)} · ${fmtTipAmount(s.playing)}</span>`
     : '—';
-  $('#sApproved').textContent = s.approved;
-  $('#sPending').textContent = s.pending;
+  $('#sApproved').textContent = faNum(s.approved);
+  $('#sPending').textContent = faNum(s.pending);
   $('#sQueue').textContent = s.queueStatus === 'play' ? 'در حال پخش' : 'متوقف';
   $('#sDelay').textContent = faNum(s.queueDelay) + ' ثانیه';
-  $('#hRate').textContent = s.rate ? Number(s.rate).toLocaleString('en-US') : '—';
+  $('#hRate').textContent = s.rate ? faNum(s.rate) : '—';
   $('#hRateMeta').textContent = s.rateManual
     ? 'دستی'
     : s.rateUpdatedAt
@@ -1326,7 +1363,7 @@ function addLog(e) {
 function renderRate() {
   const r = CFG.rate || {};
   const eff = Number(r.manual) > 0 ? Number(r.manual) : r.value || 0;
-  $('#rateVal').textContent = eff ? eff.toLocaleString('en-US') + ' T' : '—';
+  $('#rateVal').textContent = eff ? faNum(eff) + ' تومان' : '—';
   $('#rateMeta').textContent =
     Number(r.manual) > 0
       ? '(دستی)'
