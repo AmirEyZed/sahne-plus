@@ -371,11 +371,146 @@ $('#btnSeDisconnect').onclick = async () => {
   toast('اتصال StreamElements حذف شد', 'ok');
   load();
 };
+// ---------- Donofa bridge: status only; the goal and timer themselves are set up on donofa.com ----------
+const DF_TEXT = {
+  connected: ['متصل', 'chip on'],
+  connecting: ['در حال اتصال…', 'chip warn'],
+  error: ['خطا', 'chip warn'],
+  unconfigured: ['تنظیم نشده', 'chip']
+};
+const DF_KIND = { tip: 'دونیت', sub: 'ساب', gift: 'ساب‌گیفت', kicks: 'KICKs' };
+const DF_NOTE = {
+  'no-timer': 'تایمر فعال نیست',
+  'no-rate': 'نرخ تایمر خاموش',
+  'no-goal': 'هدف فعال نیست',
+  'not-counted': 'در هدف تعدادی شمرده نمی‌شود',
+  completed: 'هدف تکمیل شده',
+  off: 'خاموش'
+};
+function fmtDuration(sec) {
+  sec = Math.max(0, Math.floor(Number(sec) || 0));
+  const h = Math.floor(sec / 3600),
+    m = Math.floor((sec % 3600) / 60);
+  return h ? faNum(h) + ' ساعت و ' + faNum(m) + ' دقیقه' : faNum(m) + ' دقیقه و ' + faNum(sec % 60) + ' ثانیه';
+}
+function renderDonofa() {
+  const cfg = (CFG && CFG.donofa) || {};
+  const st = (STATE && STATE.donofa) || {};
+  const status = cfg.configured ? st.status || 'connecting' : 'unconfigured';
+  const [txt, cls] = DF_TEXT[status] || DF_TEXT.unconfigured;
+  const label = status === 'error' && st.error ? 'خطا: ' + st.error : txt;
+  for (const id of ['#dfChip', '#hDf']) {
+    $(id).textContent = label;
+    $(id).className = cls;
+  }
+  $('#hDfRow').hidden = !cfg.configured;
+  $('#stDf').hidden = !cfg.configured;
+  $('#stDf').className = 'status-pill' + (status === 'connected' ? ' on' : cfg.configured ? ' warn' : '');
+  const g = st.goal,
+    tm = st.timer;
+  const unit = g ? (g.unit === 'USD' ? ' دلار' : g.unit === 'PIECE' ? ' عدد' : ' تومان') : '';
+  $('#dfGoal').textContent = !cfg.configured
+    ? '—'
+    : g
+      ? g.title +
+        ': ' +
+        faNum(g.progress) +
+        ' از ' +
+        faNum(g.total) +
+        unit +
+        (g.total ? ' (' + faNum(Math.floor((g.progress / g.total) * 100)) + '٪)' : '')
+      : 'هدفی در دونوفا ساخته نشده';
+  const TS = { running: 'در حال اجرا', paused: 'متوقف', finished: 'تمام شده' };
+  $('#dfTimer').textContent = !cfg.configured
+    ? '—'
+    : tm
+      ? (TS[tm.status] || tm.status) +
+        (tm.status === 'running' || tm.status === 'paused' ? ' · ' + fmtDuration(tm.remaining) + ' مانده' : '') +
+        (tm.rate ? ' · هر ' + faNum(tm.rate.amount) + ' تومان = ' + faNum(tm.rate.seconds) + ' ثانیه' : '')
+      : 'تایمری در دونوفا ساخته نشده';
+  $('#dfQueue').textContent = faNum(st.queue || 0);
+  const notes = [];
+  if (cfg.configured && tm && cfg.timer !== false && !['running', 'paused'].includes(tm.status))
+    notes.push('تایمر دونوفا فعال نیست؛ تا وقتی در پنل دونوفا شروعش نکنی زمانی به آن اضافه نمی‌شود.');
+  if (cfg.configured && ((g && g.subKick) || (tm && tm.subKick)))
+    notes.push(
+      'کلید «ساب کیک» در ' +
+        [g && g.subKick ? 'هدف' : '', tm && tm.subKick ? 'تایمر' : ''].filter(Boolean).join(' و ') +
+        ' دونوفا روشن است. ساب‌ها را Sahne Plus حساب می‌کند؛ آن کلید را در پنل دونوفا خاموش کن تا ساب دوبار شمرده نشود.'
+    );
+  $('#dfNote').textContent = notes.join(' ');
+  $('#dfNote').hidden = !notes.length;
+  $('#dfTimerOn').checked = cfg.timer !== false;
+  $('#dfGoalOn').checked = cfg.goal !== false;
+  $('#dfTimerOn').disabled = $('#dfGoalOn').disabled = !cfg.configured;
+  $('#dfSecret').textContent = cfg.configured
+    ? cfg.secretStorage === 'os'
+      ? 'ذخیره شده (رمزنگاری‌شده با ویندوز)'
+      : 'ذخیره شده (بدون رمزنگاری)'
+    : 'وارد نشده';
+  $('#btnDfDisconnect').disabled = $('#btnDfRefresh').disabled = !cfg.configured;
+  const box = $('#dfRecent');
+  box.textContent = '';
+  for (const r of (cfg.configured && st.recent) || []) {
+    const line = document.createElement('div');
+    line.className = 'kv';
+    const b = document.createElement('b');
+    b.textContent = (DF_KIND[r.kind] || r.kind) + ' · ' + (r.name || 'ناشناس');
+    const v = document.createElement('span');
+    const parts = [];
+    parts.push(r.timerNote ? 'تایمر: ' + (DF_NOTE[r.timerNote] || r.timerNote) : '+' + faNum(r.seconds) + ' ثانیه');
+    parts.push(
+      r.goalNote ? 'هدف: ' + (DF_NOTE[r.goalNote] || r.goalNote) : '+' + faNum(Math.round(r.goal)) + ' به هدف'
+    );
+    v.textContent = parts.join(' · ');
+    line.append(b, v);
+    box.append(line);
+  }
+}
+for (const [id, k] of [
+  ['#dfTimerOn', 'timer'],
+  ['#dfGoalOn', 'goal']
+])
+  $(id).onchange = async e => {
+    const on = e.target.checked;
+    if (await saveSettings({ donofa: { [k]: on } })) {
+      CFG.donofa = { ...CFG.donofa, [k]: on };
+      toast('ذخیره شد', 'ok');
+    } else e.target.checked = !on;
+  };
+$('#btnDfSetup').onclick = async () => {
+  const msg = $('#dfMsg');
+  msg.textContent = 'در حال بررسی با دونوفا…';
+  const r = await post('/api/donofa/setup', { key: $('#dfKey').value });
+  if (r.ok) {
+    $('#dfKey').value = '';
+    msg.textContent = 'وصل شد';
+    toast('دونوفا وصل شد', 'ok');
+    load();
+  } else {
+    msg.textContent = r.error || 'خطا';
+    toast(r.error || 'خطا', 'err');
+  }
+};
+$('#btnDfRefresh').onclick = async () => {
+  const r = await post('/api/donofa/refresh');
+  if (r && r.donofa && STATE) {
+    STATE.donofa = r.donofa;
+    renderDonofa();
+  }
+};
+$('#btnDfDisconnect').onclick = async () => {
+  if (!confirm('اتصال دونوفا قطع و API Key حذف شود؟ حمایت‌هایی که هنوز ارسال نشده‌اند دیگر ارسال نمی‌شوند.')) return;
+  await post('/api/donofa/disconnect');
+  toast('اتصال دونوفا حذف شد', 'ok');
+  load();
+};
 function fillSettings() {
   $('#ovUrl').value = 'http://localhost:' + (CFG.port || 7788) + '/overlay';
   $('#mode').value = CFG.mode;
   $('#showNoMedia').checked = CFG.showAlertWithoutMedia !== false;
   renderKb();
+  renderDonofa();
 }
 function fillApp() {
   $('#appVer').value = INFO ? INFO.version + ' · Electron ' + INFO.electron : 'web';
@@ -1130,6 +1265,7 @@ function renderState() {
   if (CFG) renderKb();
   if (CFG) renderKickStatus();
   if (CFG) renderSe();
+  if (CFG) renderDonofa();
   $('#stOv').className = 'status-pill' + (s.overlays > 0 ? ' on' : ' warn');
   $('#stOvN').textContent = s.overlays;
   $('#hOv').textContent = s.overlays;

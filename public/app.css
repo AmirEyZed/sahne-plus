@@ -220,6 +220,7 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
 .switch:active span::before { width: 22px; }
 .switch input:checked:active + span::before { transform: translateX(14px); }
 .switch input:focus-visible + span { box-shadow: var(--shadow-focus); }
+.switch input:disabled + span { opacity: .4; cursor: not-allowed; }
 /* quick test: the main action on its own line, the two others side by side */
 .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .quick-actions .btn { justify-content: center; }

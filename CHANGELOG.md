@@ -2,6 +2,14 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
+## 1.6.0 — 2026-10-20
+
+- New: **Donofa bridge** (Settings → «دونوفا: هدف و تایمر»). Donofa's own goal and timer widgets stay on stream with the look, title, target and timer rate set on donofa.com; Sahne Plus adds what Donofa never sees — Kick subs, gift subs, KICKs, KickBot and StreamElements donations — to that same goal and timer through Donofa's documented API v2. Time is converted with the Donofa timer's own rate («هر N تومان = S ثانیه»); a sub is worth its toman value from the Kick card (or $4.99 at the current rate), a KICK $0.0105. Donofa's own donations are left to Donofa. Kick subs and gift subs are always counted by Sahne Plus (it sees every one in Kick chat and uses the streamer's own sub value), so Donofa's own «ساب کیک» switch on the goal and the timer should be off; while it is on, the card says so, because Donofa could then count the same sub a second time. The Settings card only shows the goal, the timer, two switches and the last pushes: no appearance settings.
+- How the goal is moved: Donofa has no "add to goal" call, and changing a goal's start value does not move its progress (checked against a real account), but «reset» sets progress to the start value. So the app raises the start value to progress + amount, resets, and puts the start value back, right after reading the goal and never within 3 s of a Donofa donation. A stop in the middle is repaired on the next start; a reset whose answer was lost is checked before retrying; a POST that may have reached Donofa is never resent on another route.
+- Why only Donofa: the bridge needs an API that can **add** to a goal and a timer. Donofa's API v2 can; Reymit's public API (reymit.ir/APIs) is read-only — it returns the goal, the timer and donation lists, and has no call that changes them — so Reymit cannot be bridged without replacing its widgets with our own, which this feature deliberately does not do. The Settings card says this in Persian. Any service that offers such an API later can be added the same way.
+- New: KICKs from Kick chat (`KicksGifted`) are read; they have no alert, they only count toward the Donofa goal and timer.
+- Docs: PRIVACY.md and docs/DATA_FLOW.md list the Donofa requests (§3.15–3.16), the key and `donofa.json`.
+
 ## 1.5.1 — 2026-10-18
 
 - Fixed: edited settings, appearance autosave, media properties and reset could report success even when config.json could not be saved. Failed saves now keep the previous active settings, show an error and allow retry; desktop autostart also restores its previous setting if persistence fails (thanks [SoroushRF](https://github.com/SoroushRF), [#19](https://github.com/AmirEyZed/sahne-plus/pull/19)).

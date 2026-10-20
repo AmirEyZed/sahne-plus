@@ -22,6 +22,7 @@ body:
         - "KickBot donations not arriving"
         - "KickBot capture / payment confirmation"
         - "Dollar-to-toman rate (baha24 / bonbast)"
+        - "Donofa goal / timer bridge"
         - "Other"
     validations:
       required: true

@@ -4,7 +4,7 @@
 
 Sahne+ shows your own animated alerts on stream for **KickBot donations**, **Kick subscriptions** and **Kick gifted subscriptions**. Each alert plays a transparent WebM (or GIF / image / sound) that lives on your computer, with a customizable card showing the sender, the amount and the message.
 
-> Sahne+ is an independent third-party application and is not affiliated with, endorsed by, or sponsored by Kick, KickBot, baha24 or Bonbast.
+> Sahne+ is an independent third-party application and is not affiliated with, endorsed by, or sponsored by Kick, KickBot, StreamElements, Donofa, baha24 or Bonbast.
 
 ![Files page](docs/screenshots/files.png)
 
@@ -80,6 +80,7 @@ Alerts play one at a time with a configurable gap. If the Browser Source is clos
 - Live preview with drag-and-drop card positioning; fonts, colours, animations, amount formats, Persian digits
 - Optional delay before the name/amount card appears, globally or per file
 - Optional StreamElements tips next to KickBot (one token, same files and tiers)
+- Optional **Donofa bridge** (1.6.0): keep Donofa's own goal and timer widgets on stream, and let Sahne+ add what Donofa cannot see — Kick subs, gift subs, KICKs, KickBot and StreamElements donations — to that goal and timer through Donofa's API. No second widget, no appearance settings; the Donofa panel stays the only place where the goal and timer are designed. Only Donofa for now: its API can add to a goal and a timer, Reymit's public API is read-only
 - Test donation / subscription / gift buttons (never touch KickBot)
 - Runs in the system tray; optional start with Windows
 - New-version notice inside the app and a one-click update, verified against the release checksum — never automatic

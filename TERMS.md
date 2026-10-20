@@ -26,7 +26,7 @@ Sahne+ depends on services the maintainer does not control: KickBot (donation ev
 
 - those services are governed by their own terms and privacy policies, and your use of them through Sahne+ is your responsibility;
 - parts of Sahne+ rely on interfaces that those providers have not documented for third-party use; they may change, break or be restricted at any time, and the maintainer does not guarantee continued compatibility;
-- the maintainer is not affiliated with, endorsed by or sponsored by Kick, KickBot, baha24, Bonbast or Pusher.
+- the maintainer is not affiliated with, endorsed by or sponsored by Kick, KickBot, StreamElements, Donofa, baha24, Bonbast or Pusher.
 
 ## 5. Privacy
 
