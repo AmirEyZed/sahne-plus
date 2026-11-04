@@ -986,17 +986,31 @@ function createServer(opts) {
     if (Array.isArray(arr))
       for (const x of arr.slice(0, WAITING_LIMIT)) {
         const t = normalizeWaitingTip(x, true);
-        // an already played id is skipped, except for a replay (as in tryNext())
-        if (!t || !t.stripe_pi_id || t.is_test || (!t.is_replay && playedIds.has(t.stripe_pi_id))) continue;
+        // An "active" entry was on screen when the app closed: its id is already in played.json, but it never finished.
+        if (t && x.active === true) t.interrupted = true;
+        // an already played id is skipped, except for a replay (as in tryNext()) or an interrupted alert
+        if (!t || !t.stripe_pi_id || t.is_test) continue;
+        if (!t.is_replay && !t.interrupted && playedIds.has(t.stripe_pi_id)) continue;
         if (approved.some(y => y.stripe_pi_id === t.stripe_pi_id)) continue;
         approved.push(t);
-        log('info', 'هشدار نمایش‌داده‌نشده به صف برگشت', tipSummary(t));
+        log(
+          'info',
+          t.interrupted ? 'هشدار نیمه‌تمام از ابتدا دوباره پخش می‌شود' : 'هشدار نمایش‌داده‌نشده به صف برگشت',
+          tipSummary(t)
+        );
       }
   } catch {}
   saveCaptured(); // rewrites what was restored; played, malformed or unreadable entries do not stay on disk
   function saveCaptured() {
     if (stopped) return; // Clear application data deletes the file after stop()
-    const eligible = approved.map(t => normalizeWaitingTip(t)).filter(Boolean);
+    // The alert on screen stays first in the snapshot, marked active, until it ends (/api/done, skip, rejection or the
+    // play timeout), so closing the app mid-alert does not lose it. Writing is best-effort: a failure never blocks playback.
+    const eligible = (playing ? [playing, ...approved] : approved)
+      .map(t => {
+        const w = normalizeWaitingTip(t);
+        return w && (t === playing || t.interrupted) ? { ...w, active: true } : w;
+      })
+      .filter(Boolean);
     if (eligible.length > WAITING_LIMIT && !waitingOverflow)
       log('warn', 'فقط ۵۰۰ هشدار اول صف برای بازیابی پس از راه‌اندازی مجدد ذخیره می‌شوند');
     waitingOverflow = eligible.length > WAITING_LIMIT;
@@ -2307,7 +2321,7 @@ function createServer(opts) {
     }
     const t = approved.shift();
     if (!t) return;
-    if (!t.is_replay && playedIds.has(t.stripe_pi_id)) return tryNext();
+    if (!t.is_replay && !t.interrupted && playedIds.has(t.stripe_pi_id)) return tryNext();
     advancing = true;
     let next = false;
     try {

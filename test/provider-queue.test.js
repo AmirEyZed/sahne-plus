@@ -20,7 +20,7 @@ const waitFor = async check => {
   for (const end = Date.now() + 3000; Date.now() < end; await new Promise(r => setTimeout(r, 10))) if (check()) return;
   assert.fail('timed out waiting for the loopback overlay');
 };
-async function fixture(t, config = {}, initial = []) {
+async function fixture(t, config = {}, initial = [], serverOpts = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sahne-provider-queue-'));
   const probe = net.createServer();
   await new Promise(r => probe.listen(0, '127.0.0.1', r));
@@ -54,7 +54,8 @@ async function fixture(t, config = {}, initial = []) {
           return 'ok';
         },
         onPublish: (type, payload) => published.push(type + ':' + payload.stripe_pi_id)
-      }
+      },
+      ...serverOpts
     });
     await srv.start();
   };
@@ -108,6 +109,7 @@ async function fixture(t, config = {}, initial = []) {
       return srv;
     },
     dir,
+    port,
     file,
     captures,
     published,
@@ -157,9 +159,9 @@ test('real provider alerts restore mixed FIFO order and metadata without KickBot
   for (let i = 0; i < ids.length; i++) {
     await waitFor(() => overlay.plays().length === i + 1);
     assert.deepEqual(
-      f.saved().map(x => x.stripe_pi_id),
-      ids.slice(i + 1),
-      'playback removes only the active entry'
+      f.saved().map(x => [x.stripe_pi_id, !!x.active]),
+      ids.slice(i).map((id, j) => [id, j === 0]),
+      'the playing alert stays first, marked active, until it ends'
     );
     assert.equal((await f.request('/api/done', { id: ids[i] })).status, 200);
   }
@@ -347,4 +349,143 @@ test('only the first 500 eligible waiting alerts are retained; companion alerts 
   companion.srv.testHooks.kickSubscription('Synthetic immediate subscriber', 1);
   assert.deepEqual(companion.srv.testHooks.queueIds(), []);
   assert.equal(fs.existsSync(companion.file), false);
+});
+
+test('an alert on screen when the app closes plays again from the start after a restart, once and without a second capture', async t => {
+  const f = await fixture(t);
+  f.srv.testHooks.setQueueDelay(0);
+  const first = f.overlay();
+  f.srv.testHooks.injectTip({ ...kbTip('pi_synthetic_interrupted'), captured: true });
+  f.srv.testHooks.streamElementsActivity(activity('synthetic_behind'));
+  await waitFor(() => first.plays().length === 1);
+  assert.deepEqual(
+    f.saved().map(x => [x.stripe_pi_id, !!x.active]),
+    [
+      ['pi_synthetic_interrupted', true],
+      ['se_synthetic_behind', false]
+    ],
+    'the alert on screen is written first, marked active, ahead of the waiting one'
+  );
+
+  // closed mid-alert: no /api/done, so the id is in played.json but the alert never finished
+  await f.restart();
+  assert.equal(f.srv.testHooks.isPlayed('pi_synthetic_interrupted'), true);
+  assert.deepEqual(f.srv.testHooks.queueIds(), ['pi_synthetic_interrupted', 'se_synthetic_behind']);
+  f.srv.testHooks.kickbotSync([{ ...kbTip('pi_synthetic_interrupted'), approval_status: 'approved' }]);
+  f.srv.testHooks.kickbotEvent('tip_approved', kbTip('pi_synthetic_interrupted'));
+  assert.deepEqual(
+    f.srv.testHooks.queueIds(),
+    ['pi_synthetic_interrupted', 'se_synthetic_behind'],
+    'KickBot listing the tip again adds no second copy'
+  );
+
+  // a second restart before it plays keeps it recoverable
+  await f.restart();
+  assert.equal(f.saved()[0].active, true);
+  assert.deepEqual(f.srv.testHooks.queueIds(), ['pi_synthetic_interrupted', 'se_synthetic_behind']);
+
+  f.srv.testHooks.setQueueDelay(0);
+  const second = f.overlay();
+  await waitFor(() => second.plays().length === 1);
+  assert.equal(second.plays()[0].id, 'pi_synthetic_interrupted');
+  assert.equal((await f.request('/api/done', { id: 'pi_synthetic_interrupted' })).status, 200);
+  await waitFor(() => second.plays().length === 2);
+  assert.deepEqual(
+    f.saved().map(x => [x.stripe_pi_id, !!x.active]),
+    [['se_synthetic_behind', true]],
+    'a finished alert leaves the snapshot'
+  );
+  assert.equal((await f.request('/api/done', { id: 'se_synthetic_behind' })).status, 200);
+  assert.equal(fs.existsSync(f.file), false);
+  assert.deepEqual(f.captures, [], 'the captured payment is never captured again');
+  assert.deepEqual(
+    f.published.filter(p => p.startsWith('tip_play:')),
+    ['tip_play:pi_synthetic_interrupted', 'tip_play:pi_synthetic_interrupted'],
+    'one tip_play per display'
+  );
+  await f.restart();
+  assert.deepEqual(f.srv.testHooks.queueIds(), [], 'finished alerts do not return');
+});
+
+test('a replayed interrupted alert counts once toward Donofa and in Analytics', async t => {
+  // Donofa is never reached: the stubbed API fails, so the support stays queued in donofa.json across the restart
+  const f = await fixture(t, { donofa_key: '00000000-0000-4000-8000-00000000c0de' }, [], {
+    donofaRequest: async () => {
+      throw new Error('synthetic offline Donofa');
+    },
+    donofaPollMs: 3600000
+  });
+  f.srv.testHooks.setQueueDelay(0);
+  const first = f.overlay();
+  f.srv.testHooks.injectTip({ ...kbTip('pi_synthetic_counted'), captured: true });
+  await waitFor(() => first.plays().length === 1);
+  await f.restart(); // closed mid-alert
+  f.srv.testHooks.setQueueDelay(0);
+  const second = f.overlay();
+  await waitFor(() => second.plays().length === 1);
+  assert.equal(second.plays()[0].id, 'pi_synthetic_counted', 'the interrupted alert played again');
+  assert.equal((await f.request('/api/done', { id: 'pi_synthetic_counted' })).status, 200);
+
+  const bridge = JSON.parse(fs.readFileSync(path.join(f.dir, 'donofa.json'), 'utf8'));
+  const supports = [...bridge.queue.map(x => x.id), ...bridge.sent].filter(id => id === 'pi_synthetic_counted');
+  assert.equal(supports.length, 1, 'one Donofa support for two displays');
+
+  const analytics = await new Promise((resolve, reject) =>
+    http
+      .get({ host: '127.0.0.1', port: f.port, path: '/api/analytics?range=today', agent: false }, res => {
+        let text = '';
+        res.on('data', chunk => (text += chunk));
+        res.on('end', () => resolve(JSON.parse(text)));
+      })
+      .on('error', reject)
+  );
+  assert.equal(analytics.totals.count, 1, 'one donation in Analytics for two displays');
+  assert.equal(analytics.totals.amountUsd, 5);
+});
+
+test('skip, rejection and a suppressed alert without media end the active entry like /api/done', async t => {
+  const f = await fixture(t);
+  f.srv.testHooks.setQueueDelay(0);
+  const o = f.overlay();
+  f.srv.testHooks.injectTip({ ...kbTip('pi_synthetic_skipped'), captured: true });
+  await waitFor(() => o.plays().length === 1);
+  assert.equal(f.saved()[0].active, true);
+  assert.equal((await f.request('/api/skip')).status, 200);
+  assert.equal(fs.existsSync(f.file), false, 'skip');
+
+  f.srv.testHooks.injectTip({ ...kbTip('pi_synthetic_rejected'), captured: true });
+  await waitFor(() => o.plays().length === 2);
+  assert.equal(f.saved()[0].active, true);
+  f.srv.testHooks.kickbotEvent('tip_rejected', kbTip('pi_synthetic_rejected'));
+  assert.equal(fs.existsSync(f.file), false, 'rejection');
+
+  assert.equal((await f.request('/api/config', { showAlertWithoutMedia: false })).status, 200);
+  f.srv.testHooks.streamElementsActivity(activity('synthetic_no_media'));
+  await waitFor(() => f.srv.testHooks.isPlayed('se_synthetic_no_media'));
+  assert.equal(fs.existsSync(f.file), false, 'an alert that is not shown is not kept');
+  await f.restart();
+  assert.deepEqual(f.srv.testHooks.queueIds(), []);
+});
+
+test('a snapshot that cannot be written never blocks playback', async t => {
+  const f = await fixture(t);
+  f.srv.testHooks.setQueueDelay(0);
+  const write = fs.writeFileSync;
+  t.after(() => (fs.writeFileSync = write));
+  fs.writeFileSync = (p, ...args) => {
+    if (p === f.file + '.tmp') throw new Error('synthetic full disk');
+    return write(p, ...args);
+  };
+  const o = f.overlay();
+  f.srv.testHooks.streamElementsActivity(activity('synthetic_unsaved_1'));
+  f.srv.testHooks.streamElementsActivity(activity('synthetic_unsaved_2'));
+  await waitFor(() => o.plays().length === 1);
+  assert.equal((await f.request('/api/done', { id: 'se_synthetic_unsaved_1' })).status, 200);
+  await waitFor(() => o.plays().length === 2);
+  assert.equal((await f.request('/api/done', { id: 'se_synthetic_unsaved_2' })).status, 200);
+  assert.deepEqual(
+    o.plays().map(x => x.id),
+    ['se_synthetic_unsaved_1', 'se_synthetic_unsaved_2']
+  );
+  assert.equal(fs.existsSync(f.file), false, 'nothing was written, and nothing stopped');
 });

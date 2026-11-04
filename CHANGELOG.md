@@ -2,6 +2,10 @@
 
 All notable changes to the public builds. Versions follow semantic versioning.
 
+## Unreleased
+
+- Fixed: closing or restarting Sahne Plus while an alert was on screen lost that alert: it was already counted as played, so it never came back. The alert on screen now stays in `captured.json` (first, marked as playing) until it finishes, is skipped or rejected, or the play timeout ends it; after a restart it plays again from the start, without capturing a KickBot payment twice. Saving it is best-effort and never holds up the queue.
+
 ## 1.6.1 — 2026-10-20
 
 - Fixed: **a new version was easy to miss.** The update notice sat at the top of the page and scrolled away with it, and «بررسی آپدیت» only answered with a two-second toast, so in a window that was not maximised the update could not be found. Now: the notice stays pinned at the top while the page scrolls; a green **«نسخه‌ی جدید آمده»** button sits in the sidebar on every page (it stays after «بعداً» on the top bar, and shows the download progress); the About card shows **«نصب نسخه‌ی …»** right next to «بررسی آپدیت»; the check button says «در حال بررسی…» while it works; toasts stay up long enough to read.
